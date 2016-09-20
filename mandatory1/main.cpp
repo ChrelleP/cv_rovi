@@ -1,26 +1,30 @@
-// ------------- MANDATORY EXERCISE 1 | COMPUTER VISION ------------------------
+//______________ MANDATORY EXERCISE 1 | COMPUTER VISION ________________________
 // Analysis of various images, and restoration using spatial and frequency
 // domain filters.
 //
 // Made by: Mathias Thor               mthor13@student.sdu.dk
 //          Christian Koed Pedersen    chped13@student.sdu.dk
-//------------------------------------------------------------------------------
+//______________________________________________________________________________
 
+//____________________ INCLUDE FILES ____________________
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <iostream>
-#include <stdio>
+#include "stdio.h"
 
+//____________________ NAME SPACES ____________________
 using namespace cv;
 using namespace std;
 
-void display_grey_hist(Mat image)
+//____________________ FUNCTIONS ____________________
+void analyze_grey_image(Mat image)
 {
-  /// Establish the number of bins
+  //********** MAKING HISTOGRAM **************
+  // Establish the number of bins
   int histSize = 256;
 
-  /// Set the ranges ( for B,G,R) )
+  // Set the ranges ( for B,G,R) )
   float range[] = { 0, 256 } ;
   const float* histRange = { range };
 
@@ -28,10 +32,10 @@ void display_grey_hist(Mat image)
 
   Mat hist;
 
-  /// Compute the histograms:
+  // Compute the histogram:
   calcHist( &image, 1, 0, Mat(), hist, 1, &histSize, &histRange, uniform, accumulate );
 
-  // Draw the histograms for B, G and R
+  // Draw the histogram
   int hist_w = 512; int hist_h = 400;
   int bin_w = cvRound( (double) hist_w/histSize );
 
@@ -40,7 +44,7 @@ void display_grey_hist(Mat image)
   /// Normalize the result to [ 0, histImage.rows ]
   normalize(hist, hist, 0, histImage.rows, NORM_MINMAX, -1, Mat() );
 
-  /// Draw for each channel
+  /// Draw the histogram
   for( int i = 1; i < histSize; i++ )
   {
       line( histImage, Point( bin_w*(i-1), hist_h - cvRound(hist.at<float>(i-1)) ) ,
@@ -56,59 +60,42 @@ void display_grey_hist(Mat image)
   return;
 }
 
-int main( int argc, char** argv )
+
+//____________________ MAIN PROGRAM ____________________
+int main( int argc, char** argv)
 {
-    if( argc != 2)
-    {
-     cout <<" Usage: display_image ImageToLoadAndDisplay" << endl;
-     return -1;
-    }
+  //************ VARIABLES AND DATA ***************
+  Mat image_source_1;
+  Mat image_source_2;
+  Mat image_source_3;
+  Mat image_source_4_1;
+  Mat image_source_4_2;
+  Mat image_source_5;
 
-    Mat_<Vec3b> source;
-    Mat grey;
-    Mat grey_2;
+  image_source_1    = imread("./Images/ImagesForStudents/Image1.png", CV_LOAD_IMAGE_GRAYSCALE);
+  image_source_2    = imread("./Images/ImagesForStudents/Image2.png", CV_LOAD_IMAGE_GRAYSCALE);
+  image_source_3    = imread("./Images/ImagesForStudents/Image3.png", CV_LOAD_IMAGE_GRAYSCALE);
+  image_source_4_1  = imread("./Images/ImagesForStudents/Image4_1.png", CV_LOAD_IMAGE_GRAYSCALE);
+  image_source_4_2  = imread("./Images/ImagesForStudents/Image4_2.png", CV_LOAD_IMAGE_GRAYSCALE);
+  image_source_5    = imread("./Images/ImagesForStudents/Image5_optional.png", CV_LOAD_IMAGE_GRAYSCALE);
 
-    source = imread(argv[1], CV_LOAD_IMAGE_COLOR);   // Read the file
+  Mat image_modified_1   = image_source_1.clone();
+  Mat image_modified_2   = image_source_2.clone();
+  Mat image_modified_3   = image_source_3.clone();
+  Mat image_modified_4_1 = image_source_4_1.clone();
+  Mat image_modified_4_2 = image_source_4_2.clone();
+  Mat image_modified_5   = image_source_5.clone();
 
-    if(! source.data )                              // Check for invalid input
-    {
-        cout <<  "Could not open or find the image" << std::endl ;
-        return -1;
-    }
-
-    // Grayscale
-    cvtColor(source, grey, CV_BGR2GRAY);
-    grey_2 = grey.clone();
-
-    // Looping and adding
-    int new_value;
-    for(int i = 0; i < grey_2.rows; i++)
-    {
-      for(int j = 0; j < grey_2.cols; j++)
-      {
-          grey_2.at<uchar>(i,j) = saturate_cast<uchar>(grey_2.at<uchar>(i,j) + 50);
-      }
-    }
-
-  // Display histogram
-  display_grey_hist(grey);
-  display_grey_hist(grey_2);
-
-  equalizeHist(grey, grey);
-  equalizeHist(grey_2, grey_2);
-
-  display_grey_hist(grey);
-  display_grey_hist(grey_2);
-
-  // Display image
-  namedWindow( "Display window", WINDOW_AUTOSIZE );// Create a window for display.
-  imshow( "Display window", grey );                   // Show our image inside it.
-  imshow( "Source", grey_2 );
-
-  // Printing info
-  printf("Source | Type: %i \t depth: %i \t channels: %i \n", source.type(), source.depth(), source.channels());
-  printf("Grey | Type: %i \t depth: %i \t channels: %i \n", grey.type(), grey.depth(), grey.channels());
+  //************* DISPLAY IMAGES ******************
+  namedWindow( "Display window", WINDOW_AUTOSIZE );   // Create a window for display.
+  imshow( "Image 1", image_source_1 );
+  imshow( "Image 2", image_source_2 );
+  imshow( "Image 3", image_source_3 );
+  imshow( "Image 4_1", image_source_4_1 );
+  imshow( "Image 4_2", image_source_4_2 );
+  imshow( "Image 5", image_source_5 );
 
   waitKey(0);                                          // Wait for a keystroke in the window
+
   return 0;
 }
