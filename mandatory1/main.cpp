@@ -22,6 +22,8 @@ void draw_histogram(Mat);
 void draw_magnitudeplot(Mat_<float>);
 void median_filter(Mat src, Mat dst);
 void dftshift(Mat_<float>&);
+void resize_image(Mat&, float);
+
 
 //____________________ MAIN PROGRAM ____________________
 int main( int argc, char** argv)
@@ -46,6 +48,7 @@ int main( int argc, char** argv)
   medianBlur(image_source_2, image_modified_2, 15); // TODO Write about the different kernel sizes
 
   //************* DISPLAY IMAGES ******************
+  resize_image(image_modified_2, 0.25);
   imshow( "Image 2 - Modified", image_modified_2 );
   //imshow( "Image 1", image_source_2 );
   //imshow( "Image 2", image_source_2 );
@@ -127,7 +130,14 @@ void draw_histogram(Mat image)
   }
 
   /// Display
+
   imshow("Histogram", histImage );
+}
+
+void resize_image(Mat& image, float scale)
+{
+  Size size(round(scale*image.cols),round(scale*image.rows));
+  resize(image, image, size);
 }
 
 void dftshift(cv::Mat_<float>& magnitude) {
@@ -190,7 +200,6 @@ void draw_magnitudeplot(Mat_<float> img) {
    cv::normalize(img, img, 0.0, 1.0, CV_MINMAX);
    cv::normalize(magnitudel, magnitudel, 0.0, 1.0, CV_MINMAX);
    cv::normalize(phase, phase, 0.0, 1.0, CV_MINMAX);
+   resize_image(magnitudel, 0.25);
    cv::imshow("Magnitude", magnitudel);
-
-   cv::waitKey();
 }
