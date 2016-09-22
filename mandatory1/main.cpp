@@ -18,44 +18,32 @@ using namespace cv;
 using namespace std;
 
 //______________ FUNCTION DECLARATIONS __________________
-void draw_histogram(Mat);
-void draw_magnitudeplot(Mat_<float>);
+Mat draw_histogram(Mat);
+Mat draw_magnitudeplot(Mat_<float>);
 void median_filter(Mat src, Mat dst);
 void dftshift(Mat_<float>&);
 void resize_image(Mat&, float);
+void analyse_image(Mat);
 
 
 //____________________ MAIN PROGRAM ____________________
 int main( int argc, char** argv)
 {
   //************ VARIABLES AND DATA ***************
-  Mat image_source_1    = imread("../Images/Image1.png", CV_LOAD_IMAGE_GRAYSCALE);
-  Mat image_source_2    = imread("../Images/Image2.png", CV_LOAD_IMAGE_GRAYSCALE);
-  Mat image_source_3    = imread("../Images/Image3.png", CV_LOAD_IMAGE_GRAYSCALE);
-  Mat image_source_4_1  = imread("../Images/Image4_1.png", CV_LOAD_IMAGE_GRAYSCALE);
-  Mat image_source_4_2  = imread("../Images/Image4_2.png", CV_LOAD_IMAGE_GRAYSCALE);
-  Mat image_source_5    = imread("../Images/Image5_optional.png", CV_LOAD_IMAGE_GRAYSCALE);
+  // Image1.png, Image2.png, Image3.png, Image4_1.png, Image4_2.png, Image5_optional.png,
+  Mat image_source    = imread("../Images/Image1.png", CV_LOAD_IMAGE_GRAYSCALE);
+  Mat image_modified  = image_source.clone();
 
-  Mat image_modified_1   = image_source_1.clone();
-  Mat image_modified_2   = image_source_2.clone();
-  Mat image_modified_3   = image_source_3.clone();
-  Mat image_modified_4_1 = image_source_4_1.clone();
-  Mat image_modified_4_2 = image_source_4_2.clone();
-  Mat image_modified_5   = image_source_5.clone();
+  // ************ ANALYSE IMAGE *******************
+  analyse_image(image_source);
 
-  //draw_histogram(image_source_2);
-  draw_magnitudeplot(image_source_5);
-  medianBlur(image_source_2, image_modified_2, 15); // TODO Write about the different kernel sizes
+  // ************ MODIFY IMAGE ********************
+  //medianBlur(image_source_2, image_modified_2, 15); // TODO Write about the different kernel sizes
 
   //************* DISPLAY IMAGES ******************
-  resize_image(image_modified_2, 0.25);
-  imshow( "Image 2 - Modified", image_modified_2 );
-  //imshow( "Image 1", image_source_2 );
-  //imshow( "Image 2", image_source_2 );
-  //imshow( "Image 3", image_source_3 );
-  //imshow( "Image 4_1", image_source_4_1 );
-  //imshow( "Image 4_2", image_source_4_2 );
-  //imshow( "Image 5", image_source_5 );
+  resize_image(image_modified, 0.25);
+  //imshow( "Image - Modified", image_modified );
+
   waitKey(0);                                          // Wait for a keystroke in the window
 
   return 0;
@@ -95,7 +83,7 @@ void median_filter(Mat src, Mat dst, int kernel_size)
   }
 }
 
-void draw_histogram(Mat image)
+Mat draw_histogram(Mat image)
 {
   //********** MAKING HISTOGRAM **************
   // Establish the number of bins
@@ -129,9 +117,8 @@ void draw_histogram(Mat image)
                        Scalar( 0, 255, 50), 2, 8, 0  );
   }
 
-  /// Display
-
-  imshow("Histogram", histImage );
+  /// Return
+  return histImage;
 }
 
 void resize_image(Mat& image, float scale)
@@ -140,7 +127,8 @@ void resize_image(Mat& image, float scale)
   resize(image, image, size);
 }
 
-void dftshift(cv::Mat_<float>& magnitude) {
+void dftshift(cv::Mat_<float>& magnitude)
+{
    const int cx = magnitude.cols/2;
    const int cy = magnitude.rows/2;
 
@@ -159,8 +147,8 @@ void dftshift(cv::Mat_<float>& magnitude) {
    tmp.copyTo(bottomLeft);
 }
 
-void draw_magnitudeplot(Mat_<float> img) {
-
+Mat draw_magnitudeplot(Mat_<float> img)
+{
    // A gray image
    Mat padded;                       //expand input image to optimal size
 
@@ -200,6 +188,28 @@ void draw_magnitudeplot(Mat_<float> img) {
    cv::normalize(img, img, 0.0, 1.0, CV_MINMAX);
    cv::normalize(magnitudel, magnitudel, 0.0, 1.0, CV_MINMAX);
    cv::normalize(phase, phase, 0.0, 1.0, CV_MINMAX);
-   resize_image(magnitudel, 0.25);
-   cv::imshow("Magnitude", magnitudel);
+   return magnitudel;
+}
+
+void analyse_image(Mat image)
+{
+  Mat histogram = draw_histogram(image);
+  Mat magnitudeplot = draw_magnitudeplot(image);
+
+  //TODO move the picture
+
+
+  resize_image(image, 0.25);
+  imshow( "Source Image", image );
+  moveWindow("Source Image", 0, 0);
+
+  resize_image(histogram, 0.75);
+  imshow( "histogram", histogram );
+  moveWindow("histogram", image.cols/2, image.rows+25);
+
+  resize_image(magnitudeplot, 0.25);
+  imshow( "magnitudeplot", magnitudeplot );
+  moveWindow("magnitudeplot", image.cols, 0);
+
+
 }
