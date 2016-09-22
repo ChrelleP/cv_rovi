@@ -31,7 +31,7 @@ int main( int argc, char** argv)
 {
   //************ VARIABLES AND DATA ***************
   // Image1.png, Image2.png, Image3.png, Image4_1.png, Image4_2.png, Image5_optional.png,
-  Mat image_source    = imread("../Images/Image1.png", CV_LOAD_IMAGE_GRAYSCALE);
+  Mat image_source    = imread("../Images/Image3.png", CV_LOAD_IMAGE_GRAYSCALE);
   Mat image_modified  = image_source.clone();
 
   // ************ ANALYSE IMAGE *******************
@@ -101,7 +101,7 @@ Mat draw_histogram(Mat image)
   calcHist( &image, 1, 0, Mat(), hist, 1, &histSize, &histRange, uniform, accumulate );
 
   // Draw the histogram
-  int hist_w = 550; int hist_h = 400;
+  int hist_w = 512; int hist_h = 400;
   int bin_w = cvRound( (double) hist_w/histSize );
 
   Mat histImage( hist_h, hist_w, CV_8UC3, Scalar( 0,0,0) );
