@@ -1,3 +1,0 @@
-/home/mat/cv_rovi/mandatory1/build/CMakeFiles/rebuild_cache.dir
-/home/mat/cv_rovi/mandatory1/build/CMakeFiles/edit_cache.dir
-/home/mat/cv_rovi/mandatory1/build/CMakeFiles/main.dir
