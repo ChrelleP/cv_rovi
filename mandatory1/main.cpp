@@ -24,6 +24,7 @@ void median_filter(Mat src, Mat dst);
 void dftshift(Mat_<float>&);
 void resize_image(Mat&, float);
 void analyse_image(Mat);
+void analyse_sample(Mat);
 
 
 //____________________ MAIN PROGRAM ____________________
@@ -35,6 +36,8 @@ int main( int argc, char** argv)
   Mat image_modified  = image_source.clone();
 
   // ************ ANALYSE IMAGE *******************
+  analyse_sample(image_source);
+  rectangle(image_source, Point(10,10), Point(110,210), 255, CV_FILLED); // image sample
   analyse_image(image_source);
 
   // ************ MODIFY IMAGE ********************
@@ -50,6 +53,24 @@ int main( int argc, char** argv)
 }
 
 //____________________ FUNCTIONS ____________________
+void analyse_sample(Mat image)
+{
+  // TODO: Se slutning i 5.2 og
+  // http://stackoverflow.com/questions/8267191/how-to-crop-a-cvmat-in-opencv
+  // Derefter indsæt det udklippede i selve histogrammet
+
+  // Setup a rectangle to define your region of interest
+  Rect sample(10, 10, 100, 200);
+
+  // Crop the full image to that image contained by the rectangle myROI
+  // Note that this doesn't copy the data
+  Mat croppedImage = image(sample);
+
+  imshow( "Image - Cropped", croppedImage );
+  Mat hist = draw_histogram(croppedImage);
+  imshow( "Hist - Cropped", hist );
+}
+
 void median_filter(Mat src, Mat dst, int kernel_size)
 {
   // TODO MAKE GENERIC!
@@ -112,9 +133,9 @@ Mat draw_histogram(Mat image)
   /// Draw the histogram
   for( int i = 1; i < histSize; i++ )
   {
-      line( histImage, Point( bin_w*(i-1), hist_h - cvRound(hist.at<float>(i-1)) ) ,
-                       Point( bin_w*(i), hist_h - cvRound(hist.at<float>(i)) ),
-                       Scalar( 0, 255, 50), 2, 8, 0  );
+      line( histImage, Point( bin_w*(i), hist_h - cvRound(hist.at<float>(i)) ) ,
+                       Point( bin_w*(i), hist_h ), //TODO Lav mellemrum mellem hver (så i inde i bin_w løber 1 3 5 7 9 11 osv.)
+                       Scalar( 255, 255, 255), 3, 8, 0  );
   }
 
   /// Return
