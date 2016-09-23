@@ -32,12 +32,12 @@ int main( int argc, char** argv)
 {
   //************ VARIABLES AND DATA ***************
   // Image1.png, Image2.png, Image3.png, Image4_1.png, Image4_2.png, Image5_optional.png,
-  Mat image_source    = imread("../Images/Image3.png", CV_LOAD_IMAGE_GRAYSCALE);
+  Mat image_source    = imread("../Images/Image1.png", CV_LOAD_IMAGE_GRAYSCALE);
   Mat image_modified  = image_source.clone();
 
   // ************ ANALYSE IMAGE *******************
   analyse_sample(image_source);
-  rectangle(image_source, Point(10,10), Point(110,210), 255, CV_FILLED); // image sample
+  rectangle(image_source, Point(1350,1200), Point(1450,1300), 255, CV_FILLED); // image sample
   analyse_image(image_source);
 
   // ************ MODIFY IMAGE ********************
@@ -60,7 +60,7 @@ void analyse_sample(Mat image)
   // Derefter indsæt det udklippede i selve histogrammet
 
   // Setup a rectangle to define your region of interest
-  Rect sample(10, 10, 100, 200);
+  Rect sample(1200, 1100, 200, 200);
 
   // Crop the full image to that image contained by the rectangle myROI
   // Note that this doesn't copy the data
@@ -123,7 +123,7 @@ Mat draw_histogram(Mat image)
 
   // Draw the histogram
   int hist_w = 512; int hist_h = 400;
-  int bin_w = cvRound( (double) hist_w/histSize );
+  int bin_w = cvRound( (double) (hist_w)/histSize );
 
   Mat histImage( hist_h, hist_w, CV_8UC3, Scalar( 0,0,0) );
 
@@ -131,11 +131,11 @@ Mat draw_histogram(Mat image)
   normalize(hist, hist, 0, histImage.rows, NORM_MINMAX, -1, Mat() );
 
   /// Draw the histogram
-  for( int i = 1; i < histSize; i++ )
+  for( int i = 0; i < histSize; i++ )
   {
-      line( histImage, Point( bin_w*(i), hist_h - cvRound(hist.at<float>(i)) ) ,
-                       Point( bin_w*(i), hist_h ), //TODO Lav mellemrum mellem hver (så i inde i bin_w løber 1 3 5 7 9 11 osv.)
-                       Scalar( 255, 255, 255), 3, 8, 0  );
+    line( histImage, Point( bin_w*(i), hist_h - cvRound(hist.at<float>(i)) ) ,
+                     Point( bin_w*(i), hist_h ),
+                     Scalar( 0, 0, 255), 2, 8, 0  );
   }
 
   /// Return
