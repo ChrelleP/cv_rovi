@@ -20,55 +20,130 @@ using namespace std;
 //______________ FUNCTION DECLARATIONS __________________
 Mat draw_histogram(Mat);
 Mat draw_magnitudeplot(Mat_<float>);
+Mat analyse_sample(Mat);
+Mat restore_image(Mat,int);
+string get_filepath(int);
 void median_filter(Mat src, Mat dst);
 void dftshift(Mat_<float>&);
 void resize_image(Mat&, float);
 void analyse_image(Mat);
-void analyse_sample(Mat);
+
 
 
 //____________________ MAIN PROGRAM ____________________
 int main( int argc, char** argv)
 {
   //************ VARIABLES AND DATA ***************
-  // Image1.png, Image2.png, Image3.png, Image4_1.png, Image4_2.png, Image5_optional.png,
-  Mat image_source    = imread("../Images/Image1.png", CV_LOAD_IMAGE_GRAYSCALE);
-  Mat image_modified  = image_source.clone();
+  // Image1.png = 1, Image2.png = 2, Image3.png = 3,
+  // Image4_1.png = 41, Image4_2.png = 42, Image5_optional.png = 5,
+
+  int image_number    = 5;
+  cout << "Enter image number: ";
+  cin >> image_number;
+  cout << "Calculating ..." << endl;
+
+  Mat image_source    = imread( get_filepath( image_number ), CV_LOAD_IMAGE_GRAYSCALE );
+  Mat image_restored  = image_source.clone();
 
   // ************ ANALYSE IMAGE *******************
-  analyse_sample(image_source);
-  rectangle(image_source, Point(1350,1200), Point(1450,1300), 255, CV_FILLED); // image sample
-  analyse_image(image_source);
+  Mat histogram = draw_histogram(image_source);
+  Mat magnitudeplot = draw_magnitudeplot(image_source);
+  Mat sample = analyse_sample(image_source);
+  Mat histogram_s = draw_histogram(sample);
+
+  Scalar mean,stddev;
+  meanStdDev(sample,mean,stddev,cv::Mat());
+  cout << "The mean is:\t\t " << mean[0]  << endl;
+  cout << "The std variance is:\t " << stddev[0] << endl;
+  // TODO Check formulars at: http://docs.opencv.org/2.4/modules/core/doc/operations_on_arrays.html?highlight=meanstd#meanstddev
 
   // ************ MODIFY IMAGE ********************
-  //medianBlur(image_source_2, image_modified_2, 15); // TODO Write about the different kernel sizes
+  switch (image_number) {
+    case 1:
+      // contraharmonic filter måske?
+      break;
+    case 2:
+      // Måske det skal filtreres flere gange?
+      medianBlur(image_source, image_restored, 7); // TODO Write about the different kernel sizes
+
+      for (int i = 0; i < 3; i++) {
+        medianBlur(image_restored, image_restored, 7); // example 5.3 s. 327
+      }
+      //equalizeHist( image_restored, image_restored );
+      break;
+    case 3:
+      // Uniform noise
+      // Geometric- or arithmetic mean filter
+      break;
+    case 41:
+      // Box noise on the magnitude plot - Notch box filter (or gaussian to avoid ringing)
+      break;
+    case 42:
+      // Either bandpassfilter or notch filters
+      break;
+    case 5:
+      // Random :D
+      // Kan ikke lige se hvad det skulle være ;)
+      break;
+    default:
+      break;
+  }
+
+  // ************ ANALYSE RESTORED ****************
+  Mat histogram_r = draw_histogram(image_restored);
+  Mat magnitudeplot_r = draw_magnitudeplot(image_restored);
 
   //************* DISPLAY IMAGES ******************
-  resize_image(image_modified, 0.25);
-  //imshow( "Image - Modified", image_modified );
+  rectangle(image_source, Point(1345,1195), Point(1455,1305), 0, 3); // image sample
 
-  waitKey(0);                                          // Wait for a keystroke in the window
+  // TODO @Christian Hvis det ikke passer til den skærm, så lav en scalar variable
+  // TODO du ganger på alle resizene.. Men lad de værdier der er er nu være xD
+
+
+  resize_image(image_source, 0.25);
+  imshow( "Source Image", image_source );
+  moveWindow("Source Image", 0, 0);
+
+  resize_image(histogram, 0.75);
+  imshow( "histogram", histogram );
+  moveWindow("histogram", image_source.cols/2, image_source.rows+25);
+
+  resize_image(magnitudeplot, 0.25);
+  imshow( "magnitudeplot", magnitudeplot );
+  moveWindow("magnitudeplot", image_source.cols, 0);
+
+  resize_image(image_restored, 0.25);
+  imshow( "Restored Image", image_restored );
+  moveWindow("Restored Image", image_source.cols*2.5, 0);
+
+  resize_image(histogram_r, 0.75);
+  imshow( "histogram (restored)", histogram_r );
+  moveWindow("histogram (restored)", image_source.cols*3, image_source.rows+25);
+
+  resize_image(magnitudeplot_r, 0.25);
+  imshow( "magnitudeplot (restored)", magnitudeplot_r );
+  moveWindow("magnitudeplot (restored)", image_source.cols*3.5, 0);
+
+  resize_image(histogram_s, 0.75);
+  imshow( "histogram (sample)", histogram_s );
+  moveWindow("histogram (sample)", image_source.cols*1.75, image_source.rows+25);
+
+  resize_image(sample, 0.75);
+  imshow( "sample", sample );
+  moveWindow("sample", image_source.cols*2.25-histogram_s.cols/2, image_source.rows+25);
+
+  waitKey(0); // Wait for a keystroke in the window
 
   return 0;
 }
 
 //____________________ FUNCTIONS ____________________
-void analyse_sample(Mat image)
+Mat analyse_sample(Mat image)
 {
-  // TODO: Se slutning i 5.2 og
-  // http://stackoverflow.com/questions/8267191/how-to-crop-a-cvmat-in-opencv
-  // Derefter indsæt det udklippede i selve histogrammet
+  Rect sample(1350, 1200, 100, 100);
 
-  // Setup a rectangle to define your region of interest
-  Rect sample(1200, 1100, 200, 200);
-
-  // Crop the full image to that image contained by the rectangle myROI
-  // Note that this doesn't copy the data
   Mat croppedImage = image(sample);
-
-  imshow( "Image - Cropped", croppedImage );
-  Mat hist = draw_histogram(croppedImage);
-  imshow( "Hist - Cropped", hist );
+  return croppedImage;
 }
 
 void median_filter(Mat src, Mat dst, int kernel_size)
@@ -122,7 +197,7 @@ Mat draw_histogram(Mat image)
   calcHist( &image, 1, 0, Mat(), hist, 1, &histSize, &histRange, uniform, accumulate );
 
   // Draw the histogram
-  int hist_w = 512; int hist_h = 400;
+  int hist_w = 522; int hist_h = 400;
   int bin_w = cvRound( (double) (hist_w)/histSize );
 
   Mat histImage( hist_h, hist_w, CV_8UC3, Scalar( 0,0,0) );
@@ -133,8 +208,8 @@ Mat draw_histogram(Mat image)
   /// Draw the histogram
   for( int i = 0; i < histSize; i++ )
   {
-    line( histImage, Point( bin_w*(i), hist_h - cvRound(hist.at<float>(i)) ) ,
-                     Point( bin_w*(i), hist_h ),
+    line( histImage, Point( bin_w*(i)+5, hist_h - cvRound(hist.at<float>(i)) ) ,
+                     Point( bin_w*(i)+5, hist_h ),
                      Scalar( 0, 255, 50), 1, 8, 0  );
   }
 
@@ -233,4 +308,33 @@ void analyse_image(Mat image)
   moveWindow("magnitudeplot", image.cols, 0);
 
 
+}
+
+string get_filepath(int file_num)
+{
+  string path_name="Could not find the path";
+  switch (file_num) {
+    case 1:
+      path_name = "../Images/Image1.png";
+      break;
+    case 2:
+      path_name = "../Images/Image2.png";
+      break;
+    case 3:
+      path_name = "../Images/Image3.png";
+      break;
+    case 41:
+      path_name = "../Images/Image4_1.png";
+      break;
+    case 42:
+      path_name = "../Images/Image4_2.png";
+      break;
+    case 5:
+      path_name = "../Images/Image5_optional.png";
+      break;
+    default:
+      break;
+  }
+
+  return path_name;
 }
