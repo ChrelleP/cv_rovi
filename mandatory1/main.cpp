@@ -135,7 +135,7 @@ Mat draw_histogram(Mat image)
   {
     line( histImage, Point( bin_w*(i), hist_h - cvRound(hist.at<float>(i)) ) ,
                      Point( bin_w*(i), hist_h ),
-                     Scalar( 0, 0, 255), 2, 8, 0  );
+                     Scalar( 0, 255, 50), 1, 8, 0  );
   }
 
   /// Return
