@@ -27,6 +27,7 @@ void median_filter(Mat src, Mat dst);
 void dftshift(Mat_<float>&);
 void resize_image(Mat&, float);
 void analyse_image(Mat);
+void notch_filter(Mat&);
 
 
 
@@ -306,8 +307,35 @@ void analyse_image(Mat image)
   resize_image(magnitudeplot, 0.25);
   imshow( "magnitudeplot", magnitudeplot );
   moveWindow("magnitudeplot", image.cols, 0);
+}
 
+void notch_filter(Mat& image)
+{
+  // Pad image borders
+  int padded_rows = getOptimalDFTSize(2*image.rows);
+  int padded_cols = getOptimalDFTSize(2*image.cols);
 
+  copyMakeBorder(image, image, 0, padded_rows-image.rows ,0 ,padded_cols-image.cols, BORDER_CONSTANT, Scalar(0));
+
+  // Transform image to frequency domain
+  Mat_<float> image_parts[] = {image.clone(), Mat_<float>(image.rows, image.cols, 0.0f)};
+  Mat_<Vec2f> image_dft;
+
+  merge(image_parts, 2, image_dft);
+  dft(image_dft, image_dft);
+
+  split(image_dft, image_parts);
+
+  Mat_<float> magnitude, phase;
+  cartToPolar(image_parts[0], image_parts[1], magnitude, phase, false);
+
+  // Create notch filters
+  Mat_<float> filter_notch(magnitude.rows, magnitude.cols, 1.0f);
+  Point target_1(magnitude.rows/2 - 50, magnitude.cols/2);
+
+  // Multiply the image with the filters
+
+  // Inverse transform the image back to the spatial domain
 }
 
 string get_filepath(int file_num)
