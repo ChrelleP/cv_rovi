@@ -27,7 +27,8 @@ void median_filter(Mat src, Mat dst);
 void dftshift(Mat_<float>&);
 void resize_image(Mat&, float);
 void analyse_image(Mat);
-void notch_filter(Mat&);
+void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_off, int order);
+vector<float> freq_distance(Point uv, Point uv_k, int M, int N);
 
 
 
@@ -78,6 +79,15 @@ int main( int argc, char** argv)
       break;
     case 41:
       // Box noise on the magnitude plot - Notch box filter (or gaussian to avoid ringing)
+      {
+        Point center(0,0);
+        //Point target_1(200, 210);
+        //Point target_2(610, -620);
+        vector<Point> target_freqs;
+        target_freqs.push_back(center);
+
+        notch_highpass_butterworth(image_restored, target_freqs, 800, 5);
+      }
       break;
     case 42:
       // Either bandpassfilter or notch filters
@@ -104,7 +114,7 @@ int main( int argc, char** argv)
   resize_image(image_source, 0.25);
   imshow( "Source Image", image_source );
   moveWindow("Source Image", 0, 0);
-
+  /*
   resize_image(histogram, 0.75);
   imshow( "histogram", histogram );
   moveWindow("histogram", image_source.cols/2, image_source.rows+25);
@@ -131,7 +141,7 @@ int main( int argc, char** argv)
 
   resize_image(sample, 0.75);
   imshow( "sample", sample );
-  moveWindow("sample", image_source.cols*2.25-histogram_s.cols/2, image_source.rows+25);
+  moveWindow("sample", image_source.cols*2.25-histogram_s.cols/2, image_source.rows+25);*/
 
   waitKey(0); // Wait for a keystroke in the window
 
@@ -309,11 +319,26 @@ void analyse_image(Mat image)
   moveWindow("magnitudeplot", image.cols, 0);
 }
 
-void notch_filter(Mat& image)
+vector<float> freq_distance(Point uv, Point uv_k, int M, int N)
+{
+  vector<float> result;
+  float d_pos = sqrt( powf(uv.x - M/2 - uv_k.x, 2) + powf(uv.y - N/2 - uv_k.y, 2) );
+  float d_neg = sqrt( powf(uv.x - M/2 + uv_k.x, 2) + powf(uv.y - N/2 + uv_k.y, 2) );
+
+  result.push_back(d_pos);
+  result.push_back(d_neg);
+
+  return result;
+}
+
+void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_off, int order)
 {
   // Pad image borders
   int padded_rows = getOptimalDFTSize(2*image.rows);
   int padded_cols = getOptimalDFTSize(2*image.cols);
+
+  int imgCols = image.cols;
+  int imgRows = image.rows;
 
   copyMakeBorder(image, image, 0, padded_rows-image.rows ,0 ,padded_cols-image.cols, BORDER_CONSTANT, Scalar(0));
 
@@ -329,13 +354,70 @@ void notch_filter(Mat& image)
   Mat_<float> magnitude, phase;
   cartToPolar(image_parts[0], image_parts[1], magnitude, phase, false);
 
+  dftshift(magnitude);
+
   // Create notch filters
   Mat_<float> filter_notch(magnitude.rows, magnitude.cols, 1.0f);
-  Point target_1(magnitude.rows/2 - 50, magnitude.cols/2);
+  Mat_<float> filter_notch_values(magnitude.rows, magnitude.cols, 1.0f);
 
-  // Multiply the image with the filters
+  int u_range = magnitude.cols;
+  int v_range = magnitude.rows;
 
+  for(int u = 0; u < u_range; u++){
+    for(int v = 0; v < v_range; v++){
+      // Variables for calculations
+      float H_NR = 1;
+      float H_NR_first;
+      float H_NR_second;
+      float H_NP;
+
+      for(int k = 0; k < targets.size(); k++){
+        vector<float> D_k = freq_distance(Point(u, v), targets[k], u_range, v_range);
+
+        H_NR_first  = 1 / (1 + powf(cut_off / D_k[0], 2*order) );
+        H_NR_second = 1 / (1 + powf(cut_off / D_k[1], 2*order) );
+
+        H_NR *= H_NR_first * H_NR_second;
+      }
+
+      H_NP = H_NR;
+
+      filter_notch.at<float>(u,v) = magnitude.at<float>(u,v) * H_NP;
+      filter_notch_values.at<float>(u,v) = 1;
+
+    }
+  }
+
+  //filter_notch_values.at<float>(u_range/2,v_range/2) = 0;
+
+  //cv::log(filter_notch_values, filter_notch_values);
+  normalize(filter_notch_values, filter_notch_values, 0.0, 1.0, CV_MINMAX);
+  //circle(magnitude, Point(magnitude.cols/2 + 200, magnitude.rows/2 + 210), 20, Scalar(0), -1, 8);
+  //circle(magnitude, Point(magnitude.cols/2 + 610, magnitude.rows/2 - 620), 20, Scalar(0), -1, 8);
+
+  resize_image(filter_notch_values, 0.25);
+  imshow("magnitude", filter_notch_values);
+
+  Mat_<float> imgout;
   // Inverse transform the image back to the spatial domain
+
+  // Shift back quadrants of the spectrum
+  dftshift(magnitude);
+
+  // Compute complex DFT output from magnitude/phase
+  cv::polarToCart(magnitude, phase, image_parts[0], image_parts[1]);
+
+  // Merge DFT into one image and restore
+  cv::merge(image_parts, 2, image_dft);
+  cv::dft(image_dft, imgout, cv::DFT_INVERSE + cv::DFT_SCALE + cv::DFT_REAL_OUTPUT);
+
+  //Cut away the borders
+  imgout = imgout(cv::Rect(0,0,imgCols,imgRows));
+
+  cv::normalize(imgout, imgout, 0.0, 1.0, CV_MINMAX);
+  resize_image(imgout, 0.25);
+  imshow("Output", imgout);
+
 }
 
 string get_filepath(int file_num)
