@@ -69,7 +69,7 @@ int main( int argc, char** argv)
   // ************ MODIFY IMAGE ********************
   switch (image_number) {
     case 1:
-      Contraharmonic_filter(image_source, image_restored, 3, 1.5);
+      Contraharmonic_filter(image_source, image_restored, 5, 1.5);
       break;
     case 2:
       // Måske det skal filtreres flere gange?
@@ -186,16 +186,22 @@ Mat analyse_sample(Mat image)
 void Contraharmonic_filter(Mat src, Mat dst, int kernel_size, float Q)
 {
     // TODO MAKER BORDER ON INPUT IMAGE
-
+    Mat image_tmp;
+    src.copyTo(image_tmp);
+    int top = (int) (0.05*image_tmp.rows);  int bottom = (int) (0.05*image_tmp.rows);
+    int left = (int) (0.05*image_tmp.cols); int right = (int) (0.05*image_tmp.cols);
+    copyMakeBorder( src, image_tmp, top, bottom, left, right, BORDER_REPLICATE, 0);
     kernel_size=kernel_size/2;
+
+    imshow("border image", image_tmp);
 
     for(int y = kernel_size; y < src.rows - kernel_size-1; y++){
         for(int x = kernel_size; x < src.cols - kernel_size-1; x++){
           double denominator=0,numerator=0;
           for(int s = -kernel_size; s <= kernel_size; s++){
             for(int t = -kernel_size; t <= kernel_size; t++){
-                numerator += pow(src.at<uchar>(y+s,x+t),Q+1);
-                denominator += pow(src.at<uchar>(y+s,x+t),Q);
+                numerator += pow(image_tmp.at<uchar>(y+s,x+t),Q+1);
+                denominator += pow(image_tmp.at<uchar>(y+s,x+t),Q);
             }
           }
        dst.at<uchar>(y,x) = numerator/denominator;
