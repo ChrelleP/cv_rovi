@@ -74,7 +74,10 @@ int main( int argc, char** argv)
     case 2:
       // Måske det skal filtreres flere gange?
       medianBlur(image_source, image_restored, 7);
-
+      // TODO The median filter discussed in Section 5.3.2 performs well if the spatial density of the impulse noise is not large (as a rule of thumb, P a and P b less than 0.2).
+      // TODO adaptive median filtering can handle impulse noise with probabilities larger than these. An additional benefit of the adaptive median filter is that it seeks
+      // TODO to preserve detail while smoothing nonimpulse noise, something that the “traditional” median filter does not do
+      // TODO main purposes: to remove salt-and-pepper (impulse) noise, to provide smoothing of other noise that may not be impulsive, and to reduce distortion, such as excessive thinning or thickening of object boundaries.
       // TODO Keep in mind that repeated passes of a median filter will blur the image, so it is desirable to keep the number of passes as low as possible. (s.227)
       for (int i = 0; i < 3; i++) {
         medianBlur(image_restored, image_restored, 7); // example 5.3 s. 327
