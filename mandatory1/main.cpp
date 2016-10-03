@@ -23,7 +23,8 @@ Mat draw_magnitudeplot(Mat_<float>);
 Mat analyse_sample(Mat);
 Mat restore_image(Mat,int);
 string get_filepath(int);
-void median_filter(Mat src, Mat dst);
+void median_filter(Mat src, Mat dst, int);
+void Contraharmonic_filter(Mat src, Mat dst, int, float);
 void dftshift(Mat_<float>&);
 void resize_image(Mat&, float);
 void analyse_image(Mat);
@@ -41,7 +42,6 @@ int main( int argc, char** argv)
   int image_number    = 5;
   cout << "Enter image number: ";
   cin >> image_number;
-  cout << "Calculating ..." << endl;
 
   Mat image_source    = imread( get_filepath( image_number ), CV_LOAD_IMAGE_GRAYSCALE );
   Mat image_restored  = image_source.clone();
@@ -56,25 +56,36 @@ int main( int argc, char** argv)
   meanStdDev(sample,mean,stddev,cv::Mat());
   cout << "The mean is:\t\t " << mean[0]  << endl;
   cout << "The std variance is:\t " << stddev[0] << endl;
+  cout << "Calculating ..." << endl;
+
   // TODO Check formulars at: http://docs.opencv.org/2.4/modules/core/doc/operations_on_arrays.html?highlight=meanstd#meanstddev
+
+  // TODO
+  // TODO
+  // Notes: Alpha trimmed mean filter: GOOD FOR SALT AND PEPPER WITH GAUSSIAN NOISE ((BETTER SOLUTION FOR NR 2?))
+  // TODO
+  // TODO
 
   // ************ MODIFY IMAGE ********************
   switch (image_number) {
     case 1:
-      // contraharmonic filter måske?
+      Contraharmonic_filter(image_source, image_restored, 3, 1.5);
       break;
     case 2:
       // Måske det skal filtreres flere gange?
-      medianBlur(image_source, image_restored, 7); // TODO Write about the different kernel sizes
+      medianBlur(image_source, image_restored, 7);
 
+      // TODO Keep in mind that repeated passes of a median filter will blur the image, so it is desirable to keep the number of passes as low as possible. (s.227)
       for (int i = 0; i < 3; i++) {
         medianBlur(image_restored, image_restored, 7); // example 5.3 s. 327
       }
-      //equalizeHist( image_restored, image_restored );
       break;
     case 3:
       // Uniform noise
-      // Geometric- or arithmetic mean filter
+      // This is almost a harmonic filter when q=-1.5
+      // Try with alpha trimmed mean filter
+      Contraharmonic_filter(image_source, image_restored, 3, -1.5);
+
       break;
     case 41:
       // Box noise on the magnitude plot - Notch box filter (or gaussian to avoid ringing)
@@ -169,23 +180,44 @@ Mat analyse_sample(Mat image)
   return croppedImage;
 }
 
+void Contraharmonic_filter(Mat src, Mat dst, int kernel_size, float Q)
+{
+    // TODO MAKER BORDER ON INPUT IMAGE
+
+    kernel_size=kernel_size/2;
+
+    for(int y = kernel_size; y < src.rows - kernel_size-1; y++){
+        for(int x = kernel_size; x < src.cols - kernel_size-1; x++){
+          double denominator=0,numerator=0;
+          for(int s = -kernel_size; s <= kernel_size; s++){
+            for(int t = -kernel_size; t <= kernel_size; t++){
+                numerator += pow(src.at<uchar>(y+s,x+t),Q+1);
+                denominator += pow(src.at<uchar>(y+s,x+t),Q);
+            }
+          }
+       dst.at<uchar>(y,x) = numerator/denominator;
+      }
+    }
+}
+
 void median_filter(Mat src, Mat dst, int kernel_size)
 {
-  // TODO MAKE GENERIC!
-  vector<float> neighborhood (9,0);
-  int k = 0;
+  // TODO MAKER BORDER ON INPUT IMAGE
+  vector<float> neighborhood (kernel_size*kernel_size,0);
+  kernel_size = kernel_size/2;
   float median;
 
-  for (int v = 1; v < src.cols-1; v++) {
-    for (int u = 1; u < src.rows-1; u++) {
-      for (int j = -1; j < 2; j++) {
-        for (int i = -1; i < 2; i++) {
-          neighborhood[k]=static_cast<int>(src.at<uchar>(u+i,v+j));
+  for (int y = kernel_size; y < src.cols-kernel_size-1; y++) {
+    for (int x = kernel_size; x < src.rows-kernel_size-1; x++) {
+      int k=0;
+      for (int s = -kernel_size; s <= kernel_size; s++) {
+        for (int t = -kernel_size; t <= kernel_size; t++) {
+          neighborhood[k]=static_cast<int>(src.at<uchar>(x+t,y+s));
           k++;
         }
       }
 
-      /// Calculate median
+      /// Calculate median TODO FIND REFERENCE TO MEAN CALCULATIONS
       size_t size = neighborhood.size();
       sort(neighborhood.begin(), neighborhood.end());
 
@@ -196,8 +228,7 @@ void median_filter(Mat src, Mat dst, int kernel_size)
           median = neighborhood[size / 2];
       }
 
-      dst.at<uchar>(u,v)=median;
-      k=0;
+      dst.at<uchar>(x,y)=median;
     }
   }
 }
