@@ -90,13 +90,13 @@ int main( int argc, char** argv)
     case 41:
       // Box noise on the magnitude plot - Notch box filter (or gaussian to avoid ringing)
       {
-        Point target_1(200, 210);
-        Point target_2(610, -620);
+        Point target_1(206, 200);
+        Point target_2(622, -604);
         vector<Point> target_freqs;
         target_freqs.push_back(target_1);
         target_freqs.push_back(target_2);
 
-        notch_highpass_butterworth(image_restored, target_freqs, 50, 5);
+        notch_highpass_butterworth(image_restored, target_freqs, 30, 8);
       }
       break;
     case 42:
