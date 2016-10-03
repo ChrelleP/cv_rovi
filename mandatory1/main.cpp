@@ -114,7 +114,7 @@ int main( int argc, char** argv)
   resize_image(image_source, 0.25);
   imshow( "Source Image", image_source );
   moveWindow("Source Image", 0, 0);
-  /*
+
   resize_image(histogram, 0.75);
   imshow( "histogram", histogram );
   moveWindow("histogram", image_source.cols/2, image_source.rows+25);
@@ -141,7 +141,7 @@ int main( int argc, char** argv)
 
   resize_image(sample, 0.75);
   imshow( "sample", sample );
-  moveWindow("sample", image_source.cols*2.25-histogram_s.cols/2, image_source.rows+25);*/
+  moveWindow("sample", image_source.cols*2.25-histogram_s.cols/2, image_source.rows+25);
 
   waitKey(0); // Wait for a keystroke in the window
 
