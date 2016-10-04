@@ -96,10 +96,17 @@ int main( int argc, char** argv)
 
       break;
     case 3:
+      {
       // Uniform noise
       // This is almost a harmonic filter when q=-1.5
       // Try with alpha trimmed mean filter
-      Contraharmonic_filter(image_source, image_restored, 5, -1.5); // TODO Fjerne ikke alt det hvide
+      minMaxLoc(image_restored, &min);
+      image_restored.convertTo(image_restored, -1, 1, -min); // better with gamma?
+      Mat temp = image_restored.clone();
+      adaptiveBilateralFilter(temp, image_restored, Size(15, 15), 9);
+      //temp = image_restored.clone();
+      //Contraharmonic_filter(temp, image_restored, 5, -1); // TODO Fjerne ikke alt det hvide
+      }
       break;
     case 41:
       // Box noise on the magnitude plot - Notch box filter (or gaussian to avoid ringing)
@@ -160,7 +167,7 @@ int main( int argc, char** argv)
   resize_image(magnitudeplot, 0.25);
   imshow( "magnitudeplot", magnitudeplot );
   moveWindow("magnitudeplot", image_source.cols, 0);
-  imwrite( "../image_results/magnitudeplot.jpg", magnitudeplot );
+  imwrite( "../image_results/magnitudeplot.jpg", magnitudeplot * 255 );
 
   resize_image(image_restored, 0.25);
   imshow( "Restored Image", image_restored );
@@ -175,7 +182,7 @@ int main( int argc, char** argv)
   resize_image(magnitudeplot_r, 0.25);
   imshow( "magnitudeplot (restored)", magnitudeplot_r );
   moveWindow("magnitudeplot (restored)", image_source.cols*3.5, 0);
-  imwrite( "../image_results/magnitudeplot_r.jpg", magnitudeplot_r );
+  imwrite( "../image_results/magnitudeplot_r.jpg", magnitudeplot_r * 255);
 
   resize_image(histogram_s, 0.75);
   imshow( "histogram (sample)", histogram_s );
