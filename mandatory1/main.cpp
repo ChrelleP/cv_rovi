@@ -28,6 +28,7 @@ void Contraharmonic_filter(Mat src, Mat dst, int, float);
 void dftshift(Mat_<float>&);
 void resize_image(Mat&, float);
 void analyse_image(Mat);
+void analyse_sp(Mat&);
 void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_off, int order);
 void intensityIncrease(Mat dst, double alhpa, int beta, bool saturateCast);
 
@@ -51,6 +52,7 @@ int main( int argc, char** argv)
   Mat magnitudeplot = draw_magnitudeplot(image_source);
   Mat sample = analyse_sample(image_source);
   Mat histogram_s = draw_histogram(sample);
+  analyse_sp(image_source);
 
   Scalar mean,stddev;
   meanStdDev(sample,mean,stddev,cv::Mat());
@@ -139,34 +141,42 @@ int main( int argc, char** argv)
   resize_image(image_source, 0.25);
   imshow( "Source Image", image_source );
   moveWindow("Source Image", 0, 0);
+  imwrite( "../image_results/source_image.jpg", image_source );
 
   resize_image(histogram, 0.75);
   imshow( "histogram", histogram );
   moveWindow("histogram", image_source.cols/2, image_source.rows+25);
+  imwrite( "../image_results/histogram.jpg", histogram );
 
   resize_image(magnitudeplot, 0.25);
   imshow( "magnitudeplot", magnitudeplot );
   moveWindow("magnitudeplot", image_source.cols, 0);
+  imwrite( "../image_results/magnitudeplot.jpg", magnitudeplot );
 
   resize_image(image_restored, 0.25);
   imshow( "Restored Image", image_restored );
   moveWindow("Restored Image", image_source.cols*2.5, 0);
+  imwrite( "../image_results/image_restored.jpg", image_restored );
 
   resize_image(histogram_r, 0.75);
   imshow( "histogram (restored)", histogram_r );
   moveWindow("histogram (restored)", image_source.cols*3, image_source.rows+25);
+  imwrite( "../image_results/histogram_r.jpg", histogram_r );
 
   resize_image(magnitudeplot_r, 0.25);
   imshow( "magnitudeplot (restored)", magnitudeplot_r );
   moveWindow("magnitudeplot (restored)", image_source.cols*3.5, 0);
+  imwrite( "../image_results/magnitudeplot_r.jpg", magnitudeplot_r );
 
   resize_image(histogram_s, 0.75);
   imshow( "histogram (sample)", histogram_s );
   moveWindow("histogram (sample)", image_source.cols*1.75, image_source.rows+25);
+  imwrite( "../image_results/histogram_s.jpg", histogram_s );
 
   resize_image(sample, 0.75);
   imshow( "sample", sample );
   moveWindow("sample", image_source.cols*2.25-histogram_s.cols/2, image_source.rows+25);
+  imwrite( "../image_results/sample.jpg", sample );
 
   waitKey(0); // Wait for a keystroke in the window
 
@@ -374,6 +384,34 @@ void analyse_image(Mat image)
   moveWindow("magnitudeplot", image.cols, 0);
 }
 
+void analyse_sp(Mat& image)
+{
+  float total_pixels = image.cols * image.rows;
+  float salt        = 0;
+  float pepper      = 0;
+  float p_salt    = 0;
+  float p_pepper  = 0;
+
+  for(int i = 0; i < image.cols; i++){
+    for(int j = 0; j < image.rows; j++){
+      int current_pixel = image.at<uchar>(i, j);
+
+      if(current_pixel == 0)
+        pepper ++;
+      if(current_pixel == 255)
+        salt ++;
+    }
+  }
+
+  if(salt > 0)
+    p_salt = salt / total_pixels;
+  if(pepper > 0)
+    p_pepper = pepper / total_pixels;
+
+  printf("P of salt: %f \t P of pepper: %f \n", p_salt, p_pepper);
+
+}
+
 void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_off, int order)
 {
   // Pad image borders
@@ -400,7 +438,7 @@ void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_of
   dftshift(magnitude);
 
   // Create notch filters
-  Mat_<float> filter_notch(magnitude.rows, magnitude.cols, 1.0f);
+  Mat_<float> filter_notch = magnitude.clone();
   Mat_<float> filter_notch_values(magnitude.rows, magnitude.cols, 1.0f);
 
   int u_range = magnitude.rows;
@@ -427,8 +465,9 @@ void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_of
       H_NP = H_NR;          // Low pass
       //H_NP = 1 - H_NR;    // High pass
 
-      filter_notch.at<float>(u,v) = magnitude.at<float>(u,v) * H_NP;
-      filter_notch_values.at<float>(u,v) = H_NP;
+      if(H_NP != 1)
+        filter_notch.at<float>(u,v) = magnitude.at<float>(u,v) * H_NP;
+      //filter_notch_values.at<float>(u,v) = H_NP;
     }
   }
 
