@@ -35,7 +35,7 @@ void intensityIncrease(Mat dst, double alhpa, int beta, bool saturateCast);
 //____________________ MAIN PROGRAM ____________________
 int main( int argc, char** argv)
 {
-  //************ VARIABLES AND DATA ***************
+  //_____________ VARIABLES AND DATA ______________
   // Image1.png = 1, Image2.png = 2, Image3.png = 3,
   // Image4_1.png = 41, Image4_2.png = 42, Image5_optional.png = 5,
 
@@ -46,7 +46,7 @@ int main( int argc, char** argv)
   Mat image_source    = imread( get_filepath( image_number ), CV_LOAD_IMAGE_GRAYSCALE );
   Mat image_restored  = image_source.clone();
 
-  // ************ ANALYSE IMAGE *******************
+  // ______________ ANALYSE IMAGE ______________
   Mat histogram = draw_histogram(image_source);
   Mat magnitudeplot = draw_magnitudeplot(image_source);
   Mat sample = analyse_sample(image_source);
@@ -66,7 +66,7 @@ int main( int argc, char** argv)
   // TODO
   // TODO
 
-  // ************ MODIFY IMAGE ********************
+  // ______________ MODIFY IMAGE ______________
   switch (image_number) {
     case 1:
       Contraharmonic_filter(image_source, image_restored, 5, 1.5);
@@ -119,18 +119,17 @@ int main( int argc, char** argv)
       // Either bandpassfilter or notch filters
       break;
     case 5:
-      // Random :D
-      // Kan ikke lige se hvad det skulle være ;)
+      // Weiner vil jeg tro
       break;
     default:
       break;
   }
 
-  // ************ ANALYSE RESTORED ****************
+  // ______________ ANALYSE RESTORED ______________
   Mat histogram_r = draw_histogram(image_restored);
   Mat magnitudeplot_r = draw_magnitudeplot(image_restored);
 
-  //************* DISPLAY IMAGES ******************
+  //______________ DISPLAY IMAGES ______________
   rectangle(image_source, Point(1345,1195), Point(1455,1305), 0, 3); // image sample
 
   // TODO @Christian Hvis det ikke passer til den skærm, så lav en scalar variable
@@ -248,7 +247,7 @@ void median_filter(Mat src, Mat dst, int kernel_size)
 
 Mat draw_histogram(Mat image)
 {
-  //********** MAKING HISTOGRAM **************
+  //______________ MAKING HISTOGRAM ______________
   // Establish the number of bins
   int histSize = 256;
 
