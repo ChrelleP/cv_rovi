@@ -29,7 +29,7 @@ void dftshift(Mat_<float>&);
 void resize_image(Mat&, float);
 void analyse_image(Mat);
 void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_off, int order);
-
+void intensityIncrease(Mat dst, double alhpa, int beta, bool saturateCast);
 
 
 //____________________ MAIN PROGRAM ____________________
@@ -70,9 +70,9 @@ int main( int argc, char** argv)
   switch (image_number) {
     case 1:
       Contraharmonic_filter(image_source, image_restored, 5, 1.5);
+      image_restored.convertTo(image_restored, -1, 1.3, 20); // better with gamma?
       break;
     case 2:
-      // Måske det skal filtreres flere gange?
       medianBlur(image_source, image_restored, 7);
       // TODO The median filter discussed in Section 5.3.2 performs well if the spatial density of the impulse noise is not large (as a rule of thumb, P a and P b less than 0.2).
       // TODO adaptive median filtering can handle impulse noise with probabilities larger than these. An additional benefit of the adaptive median filter is that it seeks
@@ -82,13 +82,13 @@ int main( int argc, char** argv)
       for (int i = 0; i < 3; i++) {
         medianBlur(image_restored, image_restored, 7); // example 5.3 s. 327
       }
+      image_restored.convertTo(image_restored, -1, 2, -140); // better with gamma?
       break;
     case 3:
       // Uniform noise
       // This is almost a harmonic filter when q=-1.5
       // Try with alpha trimmed mean filter
-      Contraharmonic_filter(image_source, image_restored, 3, -1.5);
-
+      Contraharmonic_filter(image_source, image_restored, 5, -1.5); // TODO Fjerne ikke alt det hvide
       break;
     case 41:
       // Box noise on the magnitude plot - Notch box filter (or gaussian to avoid ringing)
@@ -185,39 +185,43 @@ Mat analyse_sample(Mat image)
 
 void Contraharmonic_filter(Mat src, Mat dst, int kernel_size, float Q)
 {
-    // TODO MAKER BORDER ON INPUT IMAGE
     Mat image_tmp;
     src.copyTo(image_tmp);
     int top = (int) (0.05*image_tmp.rows);  int bottom = (int) (0.05*image_tmp.rows);
     int left = (int) (0.05*image_tmp.cols); int right = (int) (0.05*image_tmp.cols);
-    copyMakeBorder( src, image_tmp, top, bottom, left, right, BORDER_REPLICATE, 0);
+    copyMakeBorder( src, image_tmp, top, bottom, left, right, BORDER_CONSTANT, 127);
     kernel_size=kernel_size/2;
 
-    imshow("border image", image_tmp);
-
-    for(int y = kernel_size; y < src.rows - kernel_size-1; y++){
-        for(int x = kernel_size; x < src.cols - kernel_size-1; x++){
+    for(int y = 0; y < src.rows; y++){
+        for(int x = 0; x < src.cols; x++){
           double denominator=0,numerator=0;
           for(int s = -kernel_size; s <= kernel_size; s++){
             for(int t = -kernel_size; t <= kernel_size; t++){
-                numerator += pow(image_tmp.at<uchar>(y+s,x+t),Q+1);
-                denominator += pow(image_tmp.at<uchar>(y+s,x+t),Q);
+                numerator += pow(image_tmp.at<uchar>(y+s+top,x+t+left),Q+1);
+                denominator += pow(image_tmp.at<uchar>(y+s+top,x+t+left),Q);
             }
           }
        dst.at<uchar>(y,x) = numerator/denominator;
       }
     }
+
+    resize_image(image_tmp, 0.25);
+    imshow("border image", image_tmp);
 }
 
 void median_filter(Mat src, Mat dst, int kernel_size)
 {
-  // TODO MAKER BORDER ON INPUT IMAGE
+  Mat image_tmp;
+  src.copyTo(image_tmp);
+  int top = (int) (0.05*image_tmp.rows);  int bottom = (int) (0.05*image_tmp.rows);
+  int left = (int) (0.05*image_tmp.cols); int right = (int) (0.05*image_tmp.cols);
+  copyMakeBorder( src, image_tmp, top, bottom, left, right, BORDER_CONSTANT, 127);
   vector<float> neighborhood (kernel_size*kernel_size,0);
   kernel_size = kernel_size/2;
   float median;
 
-  for (int y = kernel_size; y < src.cols-kernel_size-1; y++) {
-    for (int x = kernel_size; x < src.rows-kernel_size-1; x++) {
+  for (int y = 0; y < src.cols; y++) {
+    for (int x = 0; x < src.rows; x++) {
       int k=0;
       for (int s = -kernel_size; s <= kernel_size; s++) {
         for (int t = -kernel_size; t <= kernel_size; t++) {
