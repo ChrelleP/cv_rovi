@@ -78,7 +78,12 @@ int main( int argc, char** argv)
       image_restored.convertTo(image_restored, -1, 1.5, -min); // better with gamma?
       Mat temp = image_restored.clone();
       medianBlur(temp, image_restored, 7);
-      //adaptiveBilateralFilter(temp, image_restored, Size(7, 7), 5);
+      temp = image_restored.clone();
+      Mat new_restored;
+      bilateralFilter(temp, new_restored, 9, 30, 30); // Optional - Removes a bit of the remaining spots, but also blurs the image more.
+      resize_image(new_restored, 0.25);
+      imshow( "new_restored Image", new_restored );
+
       }
       break;
     case 2:
@@ -102,7 +107,7 @@ int main( int argc, char** argv)
       minMaxLoc(image_restored, &min);
       image_restored.convertTo(image_restored, -1, 1, -min); // better with gamma?
       Mat temp = image_restored.clone();
-      adaptiveBilateralFilter(temp, image_restored, Size(15, 15), 9);
+      bilateralFilter(temp, image_restored, 9, 50, 50);
       //temp = image_restored.clone();
       //Contraharmonic_filter(temp, image_restored, 5, -1); // TODO Fjerne ikke alt det hvide
       }
@@ -116,7 +121,7 @@ int main( int argc, char** argv)
         target_freqs.push_back(target_1);
         target_freqs.push_back(target_2);
 
-        notch_highpass_butterworth(image_restored, target_freqs, 30, 8);
+        notch_highpass_butterworth(image_restored, target_freqs, 20, 5);
       }
       break;
     case 42:
