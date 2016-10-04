@@ -23,7 +23,7 @@ Mat draw_magnitudeplot(Mat_<float>);
 Mat analyse_sample(Mat);
 Mat restore_image(Mat,int);
 string get_filepath(int);
-void median_filter(Mat src, Mat dst, int);
+void median_filter(Mat src, Mat dst, int, int);
 void Contraharmonic_filter(Mat src, Mat dst, int, float);
 void dftshift(Mat_<float>&);
 void resize_image(Mat&, float);
@@ -74,9 +74,10 @@ int main( int argc, char** argv)
     case 1:
       Contraharmonic_filter(image_source, image_restored, 5, 1.5);
       minMaxLoc(image_restored, &min);
-      image_restored.convertTo(image_restored, -1, 1.5, -min); // better with gamma?
+      image_restored.convertTo(image_restored, -1, 1.6, -min); // better with gamma?
       break;
     case 2:
+      /*
       medianBlur(image_source, image_restored, 7);
       // TODO The median filter discussed in Section 5.3.2 performs well if the spatial density of the impulse noise is not large (as a rule of thumb, P a and P b less than 0.2).
       // TODO adaptive median filtering can handle impulse noise with probabilities larger than these. An additional benefit of the adaptive median filter is that it seeks
@@ -87,7 +88,12 @@ int main( int argc, char** argv)
         medianBlur(image_restored, image_restored, 7); // example 5.3 s. 327
       }
       minMaxLoc(image_restored, &min);
-      image_restored.convertTo(image_restored, -1, 1.6, -min); // better with gamma?
+      image_restored.convertTo(image_restored, -1, 1.6, -min); // better with gamma? */
+
+      median_filter(image_source, image_restored, 3, 7);
+      minMaxLoc(image_restored, &min);
+      image_restored.convertTo(image_restored, -1, 1.2, -min); // better with gamma?
+
       break;
     case 3:
       // Uniform noise
@@ -135,7 +141,7 @@ int main( int argc, char** argv)
   Mat magnitudeplot_r = draw_magnitudeplot(image_restored);
 
   //______________ DISPLAY IMAGES ______________
-  rectangle(image_source, Point(1345,1195), Point(1455,1305), 0, 3); // image sample
+  rectangle(image_source, Point(1345,1195), Point(1455,1305), 0, 4); // image sample
 
   // TODO @Christian Hvis det ikke passer til den skærm, så lav en scalar variable
   // TODO du ganger på alle resizene.. Men lad de værdier der er er nu være xD
@@ -221,39 +227,73 @@ void Contraharmonic_filter(Mat src, Mat dst, int kernel_size, float Q)
     imshow("border image", image_tmp);
 }
 
-void median_filter(Mat src, Mat dst, int kernel_size)
+void median_filter(Mat src, Mat dst, int kernel_size_orig, const int max_kernel_size)
 {
   Mat image_tmp;
   src.copyTo(image_tmp);
-  int top = (int) (0.05*image_tmp.rows);  int bottom = (int) (0.05*image_tmp.rows);
-  int left = (int) (0.05*image_tmp.cols); int right = (int) (0.05*image_tmp.cols);
-  copyMakeBorder( src, image_tmp, top, bottom, left, right, BORDER_CONSTANT, 127);
-  vector<float> neighborhood (kernel_size*kernel_size,0);
-  kernel_size = kernel_size/2;
-  float median;
+  int top = (int) (0.1*image_tmp.rows);  int bottom = (int) (0.1*image_tmp.rows);
+  int left = (int) (0.1*image_tmp.cols); int right = (int) (0.1*image_tmp.cols);
+  copyMakeBorder( src, image_tmp, top, bottom, left, right, BORDER_CONSTANT, 0);
+  int z_min, z_max, z_xy, z_med;
+  int kernel_size = kernel_size_orig;
+  float A1, A2, B1, B2;
 
-  for (int y = 0; y < src.cols; y++) {
-    for (int x = 0; x < src.rows; x++) {
-      int k=0;
-      for (int s = -kernel_size; s <= kernel_size; s++) {
-        for (int t = -kernel_size; t <= kernel_size; t++) {
-          neighborhood[k]=static_cast<int>(src.at<uchar>(x+t,y+s));
-          k++;
+
+  for (int y = 0; y < src.rows; y++) {
+    for (int x = 0; x < src.cols; x++) {
+      while(true){
+        vector<float> neighborhood;
+        for (int s = -kernel_size/2; s <= kernel_size/2; s++) {
+          for (int t = -kernel_size/2; t <= kernel_size/2; t++) {
+            neighborhood.push_back(image_tmp.at<uchar>(y+s+top,x+t+left));
+          }
+        }
+
+        /// Calculate median TODO FIND REFERENCE TO MEAN CALCULATIONS
+        size_t size = neighborhood.size();
+        sort(neighborhood.begin(), neighborhood.end());
+
+        z_max = neighborhood[0];
+        z_min = neighborhood[size];
+        z_xy = image_tmp.at<uchar>(y+top,x+left);
+
+        if (size  % 2 == 0) {
+            z_med = (neighborhood[size / 2 - 1] + neighborhood[size / 2]) / 2;
+        }
+        else {
+            z_med = neighborhood[size / 2];
+        }
+
+        A1 = z_med - z_min;
+        A2 = z_med - z_max;
+
+        if (A1 > 0 && A2 < 0) {
+
+          B1 = z_xy - z_min;
+          B2 = z_xy - z_max;
+
+          if (B1 > 0 && B2 < 0) {
+            dst.at<uchar>(y,x)=z_xy;
+            kernel_size = kernel_size_orig;
+            break;
+          }
+          else
+          {
+            dst.at<uchar>(y,x)=z_med;
+            kernel_size = kernel_size_orig;
+            break;
+          }
+
+        }
+        else if (kernel_size <= max_kernel_size){
+          kernel_size+=2;
+        }
+        else{
+          dst.at<uchar>(y,x)=z_med;
+          kernel_size = kernel_size_orig;
+          break;
         }
       }
-
-      /// Calculate median TODO FIND REFERENCE TO MEAN CALCULATIONS
-      size_t size = neighborhood.size();
-      sort(neighborhood.begin(), neighborhood.end());
-
-      if (size  % 2 == 0) {
-          median = (neighborhood[size / 2 - 1] + neighborhood[size / 2]) / 2;
-      }
-      else {
-          median = neighborhood[size / 2];
-      }
-
-      dst.at<uchar>(x,y)=median;
     }
   }
 }
