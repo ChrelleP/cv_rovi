@@ -68,11 +68,13 @@ int main( int argc, char** argv)
   // TODO
   // TODO
 
+  double min;
   // ______________ MODIFY IMAGE ______________
   switch (image_number) {
     case 1:
       Contraharmonic_filter(image_source, image_restored, 5, 1.5);
-      image_restored.convertTo(image_restored, -1, 1.3, 20); // better with gamma?
+      minMaxLoc(image_restored, &min);
+      image_restored.convertTo(image_restored, -1, 1.5, -min); // better with gamma?
       break;
     case 2:
       medianBlur(image_source, image_restored, 7);
@@ -84,7 +86,8 @@ int main( int argc, char** argv)
       for (int i = 0; i < 3; i++) {
         medianBlur(image_restored, image_restored, 7); // example 5.3 s. 327
       }
-      image_restored.convertTo(image_restored, -1, 2, -140); // better with gamma?
+      minMaxLoc(image_restored, &min);
+      image_restored.convertTo(image_restored, -1, 1.6, -min); // better with gamma?
       break;
     case 3:
       // Uniform noise
@@ -198,7 +201,7 @@ void Contraharmonic_filter(Mat src, Mat dst, int kernel_size, float Q)
     src.copyTo(image_tmp);
     int top = (int) (0.05*image_tmp.rows);  int bottom = (int) (0.05*image_tmp.rows);
     int left = (int) (0.05*image_tmp.cols); int right = (int) (0.05*image_tmp.cols);
-    copyMakeBorder( src, image_tmp, top, bottom, left, right, BORDER_CONSTANT, 127);
+    copyMakeBorder( src, image_tmp, top, bottom, left, right, BORDER_CONSTANT, 0);
     kernel_size=kernel_size/2;
 
     for(int y = 0; y < src.rows; y++){
