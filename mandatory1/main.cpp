@@ -72,6 +72,7 @@ int main( int argc, char** argv)
   // ______________ MODIFY IMAGE ______________
   switch (image_number) {
     case 1:
+      {
       Contraharmonic_filter(image_source, image_restored, 5, 1.5);
       minMaxLoc(image_restored, &min);
       image_restored.convertTo(image_restored, -1, 1.5, -min); // better with gamma?
@@ -102,7 +103,7 @@ int main( int argc, char** argv)
 
       median_filter(image_source, image_restored, 3, 7);
       minMaxLoc(image_restored, &min);
-      image_restored.convertTo(image_restored, -1, 1.2, -min); // better with gamma?
+      image_restored.convertTo(image_restored, -1, 1.5, -min); // better with gamma?
 
       break;
     case 3:
@@ -250,7 +251,7 @@ void median_filter(Mat src, Mat dst, int kernel_size_orig, const int max_kernel_
   src.copyTo(image_tmp);
   int top = (int) (0.1*image_tmp.rows);  int bottom = (int) (0.1*image_tmp.rows);
   int left = (int) (0.1*image_tmp.cols); int right = (int) (0.1*image_tmp.cols);
-  copyMakeBorder( src, image_tmp, top, bottom, left, right, BORDER_CONSTANT, 0);
+  copyMakeBorder( src, image_tmp, top, bottom, left, right, BORDER_REPLICATE);
   int z_min, z_max, z_xy, z_med;
   int kernel_size = kernel_size_orig;
   float A1, A2, B1, B2;
