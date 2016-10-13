@@ -25,6 +25,7 @@ Mat restore_image(Mat,int);
 string get_filepath(int);
 void median_filter(Mat src, Mat dst, int, int);
 void Contraharmonic_filter(Mat src, Mat dst, int, float);
+void midpoint_filter(Mat src, Mat dst, int);
 void dftshift(Mat_<float>&);
 void resize_image(Mat&, float);
 void analyse_image(Mat);
@@ -125,6 +126,7 @@ int main( int argc, char** argv)
       // Uniform noise
       // TRỲ MIDPOINT FILTER
       bilateralFilter(image_source, image_restored, 9, 50, 50);
+      //midpoint_filter(image_source, image_restored, 5);
       constrast_stretch(image_restored, image_restored);
       }
       break;
@@ -261,6 +263,34 @@ void Contraharmonic_filter(Mat src, Mat dst, int kernel_size, float Q)
             }
           }
        dst.at<uchar>(y,x) = numerator/denominator;
+      }
+    }
+
+    resize_image(image_tmp, 0.25);
+    imshow("border image", image_tmp);
+}
+
+void midpoint_filter(Mat src, Mat dst, int kernel_size)
+{
+    Mat image_tmp;
+    src.copyTo(image_tmp);
+    int top = (int) (0.05*image_tmp.rows);  int bottom = (int) (0.05*image_tmp.rows);
+    int left = (int) (0.05*image_tmp.cols); int right = (int) (0.05*image_tmp.cols);
+    copyMakeBorder( src, image_tmp, top, bottom, left, right, BORDER_CONSTANT, 0);
+    kernel_size=kernel_size/2;
+
+    for(int y = 0; y < src.rows; y++){
+        for(int x = 0; x < src.cols; x++){
+          int max_value = 0;
+          int min_value = 255;
+          for(int s = -kernel_size; s <= kernel_size; s++){
+            for(int t = -kernel_size; t <= kernel_size; t++){
+                int value = image_tmp.at<uchar>(y+s+top,x+t+left);
+                max_value = max(value, max_value);
+                min_value = min(value, min_value);
+            }
+          }
+       dst.at<uchar>(y,x) = floor((max_value + min_value)/2);
       }
     }
 
