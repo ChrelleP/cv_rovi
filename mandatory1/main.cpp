@@ -124,7 +124,6 @@ int main( int argc, char** argv)
     case 3:
       {
       // Uniform noise
-      // TRỲ MIDPOINT FILTER
       bilateralFilter(image_source, image_restored, 9, 50, 50);
       //midpoint_filter(image_source, image_restored, 5);
       constrast_stretch(image_restored, image_restored);
@@ -169,9 +168,6 @@ int main( int argc, char** argv)
 
   //______________ DISPLAY IMAGES ______________
   rectangle(image_source, Point(1345,1195), Point(1455,1305), 0, 4); // image sample
-
-  // TODO @Christian Hvis det ikke passer til den skærm, så lav en scalar variable
-  // TODO du ganger på alle resizene.. Men lad de værdier der er er nu være xD
 
   ////imwrite( "../image_results/source_image.jpg", image_source );
   resize_image(image_source, 0.25);
