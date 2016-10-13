@@ -17,7 +17,7 @@
 using namespace cv;
 using namespace std;
 
-//______________ FUNCTION DECLARATIONS __________________
+//______________ FUNCTION DECLARATIONS ________________
 Mat draw_histogram(Mat);
 Mat draw_magnitudeplot(Mat_<float>);
 Mat analyse_sample(Mat);
@@ -31,7 +31,7 @@ void analyse_image(Mat);
 void analyse_sp(Mat&);
 void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_off, int order);
 void intensityIncrease(Mat dst, double alhpa, int beta, bool saturateCast);
-
+void constrast_stretch(Mat src, Mat dst);
 
 //____________________ MAIN PROGRAM ____________________
 int main( int argc, char** argv)
@@ -61,7 +61,6 @@ int main( int argc, char** argv)
   cout << "Calculating ..." << endl;
 
   // TODO Check formulars at: http://docs.opencv.org/2.4/modules/core/doc/operations_on_arrays.html?highlight=meanstd#meanstddev
-
   // TODO
   // TODO
   // Notes: Alpha trimmed mean filter: GOOD FOR SALT AND PEPPER WITH GAUSSIAN NOISE ((BETTER SOLUTION FOR NR 2?))
@@ -73,9 +72,8 @@ int main( int argc, char** argv)
   switch (image_number) {
     case 1:
       {
-      Contraharmonic_filter(image_source, image_restored, 5, 1.5);
-      minMaxLoc(image_restored, &min);
-      image_restored.convertTo(image_restored, -1, 1.5, -min); // better with gamma?
+      Contraharmonic_filter(image_source, image_restored, 5, 1);
+      constrast_stretch(image_restored, image_restored);
 
       Mat temp = image_restored.clone();
       medianBlur(temp, image_restored, 7);
@@ -88,39 +86,36 @@ int main( int argc, char** argv)
       }
       break;
     case 2:
-      /*
-      medianBlur(image_source, image_restored, 7);
       // TODO The median filter discussed in Section 5.3.2 performs well if the spatial density of the impulse noise is not large (as a rule of thumb, P a and P b less than 0.2).
       // TODO adaptive median filtering can handle impulse noise with probabilities larger than these. An additional benefit of the adaptive median filter is that it seeks
       // TODO to preserve detail while smoothing nonimpulse noise, something that the “traditional” median filter does not do
       // TODO main purposes: to remove salt-and-pepper (impulse) noise, to provide smoothing of other noise that may not be impulsive, and to reduce distortion, such as excessive thinning or thickening of object boundaries.
       // TODO Keep in mind that repeated passes of a median filter will blur the image, so it is desirable to keep the number of passes as low as possible. (s.227)
-      for (int i = 0; i < 3; i++) {
-        medianBlur(image_restored, image_restored, 7); // example 5.3 s. 327
+
+      // http://hosting.soonet.ca/eliris/remotesensing/bl130lec10.html
+      // Den køre uendeligt langsomt
+      if (true) {
+        median_filter(image_source, image_restored, 3, 21);
+        constrast_stretch(image_restored, image_restored);
       }
-      minMaxLoc(image_restored, &min);
-      image_restored.convertTo(image_restored, -1, 1.6, -min); // better with gamma? */
-
-      median_filter(image_source, image_restored, 3, 7);
-      minMaxLoc(image_restored, &min);
-      image_restored.convertTo(image_restored, -1, 1.5, -min); // better with gamma?
-
+      else
+      {
+        medianBlur(image_source, image_restored, 7);
+        for (int i = 0; i < 3; i++) {
+          medianBlur(image_restored, image_restored, 7);  // example 5.3 s. 327
+        }
+        constrast_stretch(image_restored, image_restored);
+      }
       break;
     case 3:
       {
       // Uniform noise
-      // This is almost a harmonic filter when q=-1.5
-      // Try with alpha trimmed mean filter
-      minMaxLoc(image_restored, &min);
-      image_restored.convertTo(image_restored, -1, 1, -min); // better with gamma?
-      Mat temp = image_restored.clone();
-      bilateralFilter(temp, image_restored, 9, 50, 50);
-      //temp = image_restored.clone();
-      //Contraharmonic_filter(temp, image_restored, 5, -1); // TODO Fjerne ikke alt det hvide
+      // TRỲ MIDPOINT FILTER
+      bilateralFilter(image_source, image_restored, 9, 50, 50);
+      constrast_stretch(image_restored, image_restored);
       }
       break;
     case 41:
-      // Box noise on the magnitude plot - Notch box filter (or gaussian to avoid ringing)
       {
         Point target_1(206, 200);
         Point target_2(622, -604);
@@ -145,7 +140,6 @@ int main( int argc, char** argv)
 
         notch_highpass_butterworth(image_restored, target_freqs, 50, 7);
       }
-      // Either bandpassfilter or notch filters
       break;
     case 5:
       // Weiner vil jeg tro
@@ -168,42 +162,42 @@ int main( int argc, char** argv)
   resize_image(image_source, 0.25);
   imshow( "Source Image", image_source );
   moveWindow("Source Image", 0, 0);
-  imwrite( "../image_results/source_image.jpg", image_source );
+  ////imwrite( "../image_results/source_image.jpg", image_source );
 
   resize_image(histogram, 0.75);
   imshow( "histogram", histogram );
   moveWindow("histogram", image_source.cols/2, image_source.rows+25);
-  imwrite( "../image_results/histogram.jpg", histogram );
+  //imwrite( "../image_results/histogram.jpg", histogram );
 
   resize_image(magnitudeplot, 0.25);
   imshow( "magnitudeplot", magnitudeplot );
   moveWindow("magnitudeplot", image_source.cols, 0);
-  imwrite( "../image_results/magnitudeplot.jpg", magnitudeplot * 255 );
+  //imwrite( "../image_results/magnitudeplot.jpg", magnitudeplot * 255 );
 
   resize_image(image_restored, 0.25);
   imshow( "Restored Image", image_restored );
   moveWindow("Restored Image", image_source.cols*2.5, 0);
-  imwrite( "../image_results/image_restored.jpg", image_restored );
+  //imwrite( "../image_results/image_restored.jpg", image_restored );
 
   resize_image(histogram_r, 0.75);
   imshow( "histogram (restored)", histogram_r );
   moveWindow("histogram (restored)", image_source.cols*3, image_source.rows+25);
-  imwrite( "../image_results/histogram_r.jpg", histogram_r );
+  //imwrite( "../image_results/histogram_r.jpg", histogram_r );
 
   resize_image(magnitudeplot_r, 0.25);
   imshow( "magnitudeplot (restored)", magnitudeplot_r );
   moveWindow("magnitudeplot (restored)", image_source.cols*3.5, 0);
-  imwrite( "../image_results/magnitudeplot_r.jpg", magnitudeplot_r * 255);
+  //imwrite( "../image_results/magnitudeplot_r.jpg", magnitudeplot_r * 255);
 
   resize_image(histogram_s, 0.75);
   imshow( "histogram (sample)", histogram_s );
   moveWindow("histogram (sample)", image_source.cols*1.75, image_source.rows+25);
-  imwrite( "../image_results/histogram_s.jpg", histogram_s );
+  //imwrite( "../image_results/histogram_s.jpg", histogram_s );
 
   resize_image(sample, 0.75);
   imshow( "sample", sample );
   moveWindow("sample", image_source.cols*2.25-histogram_s.cols/2, image_source.rows+25);
-  imwrite( "../image_results/sample.jpg", sample );
+  //imwrite( "../image_results/sample.jpg", sample );
 
   waitKey(0); // Wait for a keystroke in the window
 
@@ -217,6 +211,23 @@ Mat analyse_sample(Mat image)
 
   Mat croppedImage = image(sample);
   return croppedImage;
+}
+
+void constrast_stretch(Mat src, Mat dst)
+{
+  // http://what-when-how.com/embedded-image-processing-on-the-tms320c6000-dsp/contrast-stretching-image-processing/
+  // http://www.nrcan.gc.ca/earth-sciences/geomatics/satellite-imagery-air-photos/satellite-imagery-products/educational-resources/9389
+  double MP = 255;
+  double min = 0, max = 0;
+  minMaxLoc(src,&min,&max);
+  cout << "Minimum intensity: " << min << endl;
+  cout << "Maximum intensity: " << max << endl;
+  double R = max-min;
+  for (int y = 0; y < src.rows; y++) {
+    for (int x = 0; x < src.cols; x++) {
+      dst.at<uchar>(y,x) = round( ((src.at<uchar>(y,x)-min) / R) * MP );
+    }
+  }
 }
 
 void Contraharmonic_filter(Mat src, Mat dst, int kernel_size, float Q)
@@ -256,8 +267,8 @@ void median_filter(Mat src, Mat dst, int kernel_size_orig, const int max_kernel_
   int kernel_size = kernel_size_orig;
   float A1, A2, B1, B2;
 
-
   for (int y = 0; y < src.rows; y++) {
+    cout << y << " of " << src.rows << endl;
     for (int x = 0; x < src.cols; x++) {
       while(true){
         vector<float> neighborhood;
