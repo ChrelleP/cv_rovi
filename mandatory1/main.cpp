@@ -33,6 +33,7 @@ void analyse_sp(Mat&);
 void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_off, int order);
 void intensityIncrease(Mat dst, double alhpa, int beta, bool saturateCast);
 void constrast_stretch(Mat src, Mat dst);
+void sharpen(Mat &image, float k);
 
 //____________________ MAIN PROGRAM ____________________
 int main( int argc, char** argv)
@@ -120,13 +121,21 @@ int main( int argc, char** argv)
         }
         constrast_stretch(image_restored, image_restored);
       }
+
       break;
     case 3:
       {
       // Uniform noise
       bilateralFilter(image_source, image_restored, 9, 50, 50);
+
       //midpoint_filter(image_source, image_restored, 5);
+      //sharpen(image_restored, 1);
+
       constrast_stretch(image_restored, image_restored);
+      //constrast_stretch(temp, temp);
+
+      //resize_image(temp, 0.4);
+      //imshow( "No sharpen Image", temp );
       }
       break;
     case 41:
@@ -142,17 +151,17 @@ int main( int argc, char** argv)
       break;
     case 42:
       {
-        Point target_1(800, 0);
-        Point target_2(570, -580);
-        Point target_3(0, 800);
-        Point target_4(570, 580);
+        Point target_1(820, 0);
+        Point target_2(590, -570);
+        Point target_3(0, 810);
+        Point target_4(590, 570);
         vector<Point> target_freqs;
         target_freqs.push_back(target_1);
         target_freqs.push_back(target_2);
         target_freqs.push_back(target_3);
         target_freqs.push_back(target_4);
 
-        notch_highpass_butterworth(image_restored, target_freqs, 50, 7);
+        notch_highpass_butterworth(image_restored, target_freqs, 30, 5);
       }
       break;
     case 5:
@@ -169,17 +178,17 @@ int main( int argc, char** argv)
   //______________ DISPLAY IMAGES ______________
   rectangle(image_source, Point(1345,1195), Point(1455,1305), 0, 4); // image sample
 
-  ////imwrite( "../image_results/source_image.jpg", image_source );
+  imwrite( "../image_results/source_image.jpg", image_source );
   resize_image(image_source, 0.25);
   imshow( "Source Image", image_source );
   moveWindow("Source Image", 0, 0);
 
-  //imwrite( "../image_results/histogram.jpg", histogram );
+  imwrite( "../image_results/histogram.jpg", histogram );
   resize_image(histogram, 0.75);
   imshow( "histogram", histogram );
   moveWindow("histogram", image_source.cols/2, image_source.rows+25);
 
-  //imwrite( "../image_results/magnitudeplot.jpg", magnitudeplot * 255 );
+  imwrite( "../image_results/magnitudeplot.jpg", magnitudeplot * 255 );
   resize_image(magnitudeplot, 0.25);
   imshow( "magnitudeplot", magnitudeplot );
   moveWindow("magnitudeplot", image_source.cols, 0);
@@ -189,22 +198,22 @@ int main( int argc, char** argv)
   imshow( "Restored Image", image_restored );
   moveWindow("Restored Image", image_source.cols*2.5, 0);
 
-  //imwrite( "../image_results/histogram_r.jpg", histogram_r );
+  imwrite( "../image_results/histogram_r.jpg", histogram_r );
   resize_image(histogram_r, 0.75);
   imshow( "histogram (restored)", histogram_r );
   moveWindow("histogram (restored)", image_source.cols*3, image_source.rows+25);
 
-  //imwrite( "../image_results/magnitudeplot_r.jpg", magnitudeplot_r * 255);
+  imwrite( "../image_results/magnitudeplot_r.jpg", magnitudeplot_r * 255);
   resize_image(magnitudeplot_r, 0.25);
   imshow( "magnitudeplot (restored)", magnitudeplot_r );
   moveWindow("magnitudeplot (restored)", image_source.cols*3.5, 0);
 
-  //imwrite( "../image_results/histogram_s.jpg", histogram_s );
+  imwrite( "../image_results/histogram_s.jpg", histogram_s );
   resize_image(histogram_s, 0.75);
   imshow( "histogram (sample)", histogram_s );
   moveWindow("histogram (sample)", image_source.cols*1.75, image_source.rows+25);
 
-  //imwrite( "../image_results/sample.jpg", sample );
+  imwrite( "../image_results/sample.jpg", sample );
   resize_image(sample, 0.75);
   imshow( "sample", sample );
   moveWindow("sample", image_source.cols*2.25-histogram_s.cols/2, image_source.rows+25);
@@ -549,7 +558,7 @@ void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_of
 
   // Create notch filters
   Mat_<float> filter_notch = magnitude.clone();
-  Mat_<float> filter_notch_values(magnitude.rows, magnitude.cols, 1.0f);
+  Mat_<float> filter_notch_values = magnitude.clone();
 
   int u_range = magnitude.rows;
   int v_range = magnitude.cols;
@@ -575,9 +584,8 @@ void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_of
       H_NP = H_NR;          // Low pass
       //H_NP = 1 - H_NR;    // High pass
 
-      if(H_NP != 1)
-        filter_notch.at<float>(u,v) = magnitude.at<float>(u,v) * H_NP;
-      //filter_notch_values.at<float>(u,v) = H_NP;
+      filter_notch.at<float>(u,v) = magnitude.at<float>(u,v) * H_NP;
+      filter_notch_values.at<float>(u,v) = H_NP;
     }
   }
 
@@ -601,6 +609,20 @@ void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_of
   //Cut away the borders
   imgout = imgout(cv::Rect(0,0,imgCols,imgRows));
   image = imgout.clone();
+}
+
+void sharpen(Mat &image, float k)
+{
+  Mat temp = image.clone();
+  float amount = k;
+
+  // Get a blurred version of the picture
+  GaussianBlur(temp, image, Size(3, 3), 0, 0);
+
+  // Following the formular Sharpened = Original + ( Original - Blurred ) * Amount
+  // Ref: https://en.wikipedia.org/wiki/Unsharp_masking#Digital_unsharp_masking
+  addWeighted(temp, 1 + amount, image, -amount, 0, image);
+
 }
 
 string get_filepath(int file_num)
