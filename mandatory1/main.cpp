@@ -33,7 +33,7 @@ void analyse_sp(Mat&);
 void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_off, int order);
 void intensityIncrease(Mat dst, double alhpa, int beta, bool saturateCast);
 void constrast_stretch(Mat src, Mat dst);
-void sharpen(Mat &image, float k);
+void sharpen(Mat &image, float k, int kernel);
 
 //____________________ MAIN PROGRAM ____________________
 int main( int argc, char** argv)
@@ -128,14 +128,15 @@ int main( int argc, char** argv)
       // Uniform noise
       bilateralFilter(image_source, image_restored, 9, 50, 50);
 
-      //midpoint_filter(image_source, image_restored, 5);
-      //sharpen(image_restored, 1);
+      midpoint_filter(image_source, image_restored, 5);
+      Mat temp = image_restored.clone();
+      sharpen(image_restored, 1.5, 5);
 
       constrast_stretch(image_restored, image_restored);
-      //constrast_stretch(temp, temp);
+      constrast_stretch(temp, temp);
 
-      //resize_image(temp, 0.4);
-      //imshow( "No sharpen Image", temp );
+      resize_image(temp, 0.4);
+      imshow( "No sharpen Image", temp );
       }
       break;
     case 41:
@@ -146,7 +147,7 @@ int main( int argc, char** argv)
         target_freqs.push_back(target_1);
         target_freqs.push_back(target_2);
 
-        notch_highpass_butterworth(image_restored, target_freqs, 20, 5);
+        notch_highpass_butterworth(image_restored, target_freqs, 20, 3);
       }
       break;
     case 42:
@@ -161,7 +162,7 @@ int main( int argc, char** argv)
         target_freqs.push_back(target_3);
         target_freqs.push_back(target_4);
 
-        notch_highpass_butterworth(image_restored, target_freqs, 30, 5);
+        notch_highpass_butterworth(image_restored, target_freqs, 30, 3);
       }
       break;
     case 5:
@@ -194,7 +195,7 @@ int main( int argc, char** argv)
   moveWindow("magnitudeplot", image_source.cols, 0);
 
   imwrite( "../image_results/image_restored.jpg", image_restored );
-  resize_image(image_restored, 0.25);
+  resize_image(image_restored, 0.4);
   imshow( "Restored Image", image_restored );
   moveWindow("Restored Image", image_source.cols*2.5, 0);
 
@@ -611,17 +612,17 @@ void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_of
   image = imgout.clone();
 }
 
-void sharpen(Mat &image, float k)
+void sharpen(Mat &image, float k, int kernel)
 {
-  Mat temp = image.clone();
+  Mat blurred = image.clone();
   float amount = k;
 
   // Get a blurred version of the picture
-  GaussianBlur(temp, image, Size(3, 3), 0, 0);
+  GaussianBlur(blurred, blurred, Size(kernel, kernel), 0, 0);
 
   // Following the formular Sharpened = Original + ( Original - Blurred ) * Amount
   // Ref: https://en.wikipedia.org/wiki/Unsharp_masking#Digital_unsharp_masking
-  addWeighted(temp, 1 + amount, image, -amount, 0, image);
+  addWeighted(image, 1 + amount, blurred, -amount, 0, image);
 
 }
 
