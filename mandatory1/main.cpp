@@ -33,6 +33,7 @@ void analyse_sp(Mat&);
 void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_off, int order);
 void intensityIncrease(Mat dst, double alhpa, int beta, bool saturateCast);
 void constrast_stretch(Mat src, Mat dst);
+void sharpen(Mat &image, float k);
 
 //____________________ MAIN PROGRAM ____________________
 int main( int argc, char** argv)
@@ -62,18 +63,13 @@ int main( int argc, char** argv)
   cout << "Calculating ..." << endl;
 
   // TODO Check formulars at: http://docs.opencv.org/2.4/modules/core/doc/operations_on_arrays.html?highlight=meanstd#meanstddev
-  // TODO
-  // TODO
-  // Notes: Alpha trimmed mean filter: GOOD FOR SALT AND PEPPER WITH GAUSSIAN NOISE ((BETTER SOLUTION FOR NR 2?))
-  // TODO
-  // TODO
 
   double min;
   // ______________ MODIFY IMAGE ______________
   switch (image_number) {
     case 1:
       {
-      Contraharmonic_filter(image_source, image_restored, 5, 1);
+      Contraharmonic_filter(image_source, image_restored, 3, 1);
       constrast_stretch(image_restored, image_restored);
 
       Mat temp = image_restored.clone();
@@ -120,13 +116,21 @@ int main( int argc, char** argv)
         }
         constrast_stretch(image_restored, image_restored);
       }
+
       break;
     case 3:
       {
       // Uniform noise
       bilateralFilter(image_source, image_restored, 9, 50, 50);
+
       //midpoint_filter(image_source, image_restored, 5);
+      //sharpen(image_restored, 1);
+
       constrast_stretch(image_restored, image_restored);
+      //constrast_stretch(temp, temp);
+
+      //resize_image(temp, 0.4);
+      //imshow( "No sharpen Image", temp );
       }
       break;
     case 41:
@@ -142,17 +146,17 @@ int main( int argc, char** argv)
       break;
     case 42:
       {
-        Point target_1(800, 0);
-        Point target_2(570, -580);
-        Point target_3(0, 800);
-        Point target_4(570, 580);
+        Point target_1(820, 0);
+        Point target_2(590, -570);
+        Point target_3(0, 810);
+        Point target_4(590, 570);
         vector<Point> target_freqs;
         target_freqs.push_back(target_1);
         target_freqs.push_back(target_2);
         target_freqs.push_back(target_3);
         target_freqs.push_back(target_4);
 
-        notch_highpass_butterworth(image_restored, target_freqs, 50, 7);
+        notch_highpass_butterworth(image_restored, target_freqs, 30, 5);
       }
       break;
     case 5:
@@ -549,7 +553,7 @@ void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_of
 
   // Create notch filters
   Mat_<float> filter_notch = magnitude.clone();
-  Mat_<float> filter_notch_values(magnitude.rows, magnitude.cols, 1.0f);
+  Mat_<float> filter_notch_values = magnitude.clone();
 
   int u_range = magnitude.rows;
   int v_range = magnitude.cols;
@@ -575,9 +579,8 @@ void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_of
       H_NP = H_NR;          // Low pass
       //H_NP = 1 - H_NR;    // High pass
 
-      if(H_NP != 1)
-        filter_notch.at<float>(u,v) = magnitude.at<float>(u,v) * H_NP;
-      //filter_notch_values.at<float>(u,v) = H_NP;
+      filter_notch.at<float>(u,v) = magnitude.at<float>(u,v) * H_NP;
+      filter_notch_values.at<float>(u,v) = H_NP;
     }
   }
 
@@ -601,6 +604,20 @@ void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_of
   //Cut away the borders
   imgout = imgout(cv::Rect(0,0,imgCols,imgRows));
   image = imgout.clone();
+}
+
+void sharpen(Mat &image, float k)
+{
+  Mat temp = image.clone();
+  float amount = k;
+
+  // Get a blurred version of the picture
+  GaussianBlur(temp, image, Size(3, 3), 0, 0);
+
+  // Following the formular Sharpened = Original + ( Original - Blurred ) * Amount
+  // Ref: https://en.wikipedia.org/wiki/Unsharp_masking#Digital_unsharp_masking
+  addWeighted(temp, 1 + amount, image, -amount, 0, image);
+
 }
 
 string get_filepath(int file_num)
