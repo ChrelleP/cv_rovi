@@ -18,22 +18,22 @@ using namespace cv;
 using namespace std;
 
 //______________ FUNCTION DECLARATIONS ________________
+// See explanations of functions below the function, further down in the code.
 Mat draw_histogram(Mat);
 Mat draw_magnitudeplot(Mat_<float>);
 Mat analyse_sample(Mat);
 Mat restore_image(Mat,int);
 string get_filepath(int);
-void median_filter(Mat src, Mat dst, int, int);
+void adaptive_median_filter(Mat src, Mat dst, int, int);
 void Contraharmonic_filter(Mat src, Mat dst, int, float);
 void midpoint_filter(Mat src, Mat dst, int);
 void dftshift(Mat_<float>&);
 void resize_image(Mat&, float);
-void analyse_image(Mat);
 void analyse_sp(Mat&);
 void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_off, int order);
 void intensityIncrease(Mat dst, double alhpa, int beta, bool saturateCast);
 void constrast_stretch(Mat src, Mat dst);
-void sharpen(Mat &image, float k);
+void sharpen(Mat &image, float k, int kernel);
 
 //____________________ MAIN PROGRAM ____________________
 int main( int argc, char** argv)
@@ -43,6 +43,8 @@ int main( int argc, char** argv)
   // Image4_1.png = 41, Image4_2.png = 42, Image5_optional.png = 5,
 
   int image_number    = 5;
+  cout << "Image1.png = 1, Image2.png = 2, Image3.png = 3," << endl;
+  cout << "Image4_1.png = 41, Image4_2.png = 42" << endl;
   cout << "Enter image number: ";
   cin >> image_number;
 
@@ -50,10 +52,10 @@ int main( int argc, char** argv)
   Mat image_restored  = image_source.clone();
 
   // ______________ ANALYSE IMAGE ______________
-  Mat histogram = draw_histogram(image_source);
-  Mat magnitudeplot = draw_magnitudeplot(image_source);
-  Mat sample = analyse_sample(image_source);
-  Mat histogram_s = draw_histogram(sample);
+  Mat histogram       = draw_histogram(image_source);
+  Mat magnitudeplot   = draw_magnitudeplot(image_source);
+  Mat sample          = analyse_sample(image_source);
+  Mat histogram_s     = draw_histogram(sample);
   analyse_sp(image_source);
 
   Scalar mean,stddev;
@@ -62,38 +64,45 @@ int main( int argc, char** argv)
   cout << "The std variance is:\t " << stddev[0] << endl;
   cout << "Calculating ..." << endl;
 
-  // TODO Check formulars at: http://docs.opencv.org/2.4/modules/core/doc/operations_on_arrays.html?highlight=meanstd#meanstddev
-
   double min;
-  // ______________ MODIFY IMAGE ______________
+
+  // ______________ RESTORE IMAGE ______________
+  // This switch case restores the image depending on the image number chosen
+  // when executing the program.
+  // The cases represent each image, and the the alternate versions (different
+  // filters mentioned in the report) are commented out.
   switch (image_number) {
-    case 1:
+    case 1: // IMAGE 1 - Pepper noise
       {
       Contraharmonic_filter(image_source, image_restored, 3, 1);
       constrast_stretch(image_restored, image_restored);
 
+      // Alternate version - Using Median blur to elimnate some of the remaining
+      // noise.
+      /*
       Mat temp = image_restored.clone();
       medianBlur(temp, image_restored, 7);
+      */
 
+      // Alternate Version - Using bilateralFilter to remove some of the remaining
+      // noise.
+      /*
       temp = image_restored.clone();
       Mat new_restored;
-      bilateralFilter(temp, new_restored, 9, 30, 30); // Optional - Removes a bit of the remaining spots, but also blurs the image more.
-      resize_image(new_restored, 0.25);
-      imshow( "new_restored Image", new_restored );
+      bilateralFilter(temp, new_restored, 9, 30, 30);
+      */
       }
       break;
-    case 2:
-      // TODO The median filter discussed in Section 5.3.2 performs well if the spatial density of the impulse noise is not large (as a rule of thumb, P a and P b less than 0.2).
-      // TODO adaptive median filtering can handle impulse noise with probabilities larger than these. An additional benefit of the adaptive median filter is that it seeks
-      // TODO to preserve detail while smoothing nonimpulse noise, something that the “traditional” median filter does not do
-      // TODO main purposes: to remove salt-and-pepper (impulse) noise, to provide smoothing of other noise that may not be impulsive, and to reduce distortion, such as excessive thinning or thickening of object boundaries.
-      // TODO Keep in mind that repeated passes of a median filter will blur the image, so it is desirable to keep the number of passes as low as possible. (s.227)
-
-      // http://hosting.soonet.ca/eliris/remotesensing/bl130lec10.html
-      // Den køre uendeligt langsomt
+    case 2: // IMAGE 2 - Large amounts of Salt and small amount of pepper noise.
+      // Adaptive Median Filter - The intended version
       if (true) {
-        median_filter(image_source, image_restored, 3, 11);
+        // Use an Adaptive Median Filter
+        adaptive_median_filter(image_source, image_restored, 3, 11);
+
+        // Stretch Contrast to improve image quality.
         constrast_stretch(image_restored, image_restored);
+
+        // Count the amount of white and black pixels
         int count_w = 0;
         int count_b = 0;
         for (int y = 0; y < image_restored.rows; y++) {
@@ -105,47 +114,59 @@ int main( int argc, char** argv)
             }
           }
         }
+
+        //Output the amount of black and white pixels.
         cout << "WHITE: " << count_w << endl;
         cout << "BLACK: " << count_b << endl;
       }
-      else
+
+      else // Alternate Version - Using multiple passes of median filter.
       {
+        // Single pass of Median (Should always be used atleast once).
         medianBlur(image_source, image_restored, 7);
+
+        // Additional passes of median (depending on i).
         for (int i = 0; i < 3; i++) {
           medianBlur(image_restored, image_restored, 7);  // example 5.3 s. 327
         }
+
+        // Contrast stretching to improve image quality
         constrast_stretch(image_restored, image_restored);
       }
 
       break;
-    case 3:
+    case 3: // IMAGE 3 - Gaussian noise
       {
-      // Uniform noise
+      // Use Bilateral Filter to remove the noise
       bilateralFilter(image_source, image_restored, 9, 50, 50);
 
-      //midpoint_filter(image_source, image_restored, 5);
-      //sharpen(image_restored, 1);
+      // Alternate Version, using midpoint filter and sharpening.
+      /*
+      midpoint_filter(image_source, image_restored, 5);
+      Mat temp = image_restored.clone();
+      sharpen(image_restored, 1, 5);
+      */
 
+      // Stretch constrast to improve the image
       constrast_stretch(image_restored, image_restored);
-      //constrast_stretch(temp, temp);
-
-      //resize_image(temp, 0.4);
-      //imshow( "No sharpen Image", temp );
       }
       break;
-    case 41:
+    case 41: // IMAGE 4_1 - Noise in the frequency domain.
       {
+        // Specify the coordinates of the targeted noise in the frequency domain.
         Point target_1(206, 200);
         Point target_2(622, -604);
         vector<Point> target_freqs;
         target_freqs.push_back(target_1);
         target_freqs.push_back(target_2);
 
-        notch_highpass_butterworth(image_restored, target_freqs, 20, 5);
+        // Use a butterworth Notch filter with the specified frequencies.
+        notch_highpass_butterworth(image_restored, target_freqs, 20, 3);
       }
       break;
-    case 42:
+    case 42: // IMAGE 4_2 - Noise in frequency domain.
       {
+        // Specify the coordinates of the targeted noise in the frequency domain.
         Point target_1(820, 0);
         Point target_2(590, -570);
         Point target_3(0, 810);
@@ -156,11 +177,12 @@ int main( int argc, char** argv)
         target_freqs.push_back(target_3);
         target_freqs.push_back(target_4);
 
-        notch_highpass_butterworth(image_restored, target_freqs, 30, 5);
+        // Use a butterworth Notch filter with specified frequencies.
+        notch_highpass_butterworth(image_restored, target_freqs, 30, 3);
       }
       break;
-    case 5:
-      // Weiner vil jeg tro
+    case 5: // IMAGE 5 - Motion blur?
+      // We believe it is motion blur, but we have not chosen to do the image restoration
       break;
     default:
       break;
@@ -171,43 +193,54 @@ int main( int argc, char** argv)
   Mat magnitudeplot_r = draw_magnitudeplot(image_restored);
 
   //______________ DISPLAY IMAGES ______________
+  // It should be noted that all these images are saved in the folder "Image Results"
+  // And are overwritten whenever the program is executed using a new image.
+
   rectangle(image_source, Point(1345,1195), Point(1455,1305), 0, 4); // image sample
 
+  // Source image
   imwrite( "../image_results/source_image.jpg", image_source );
   resize_image(image_source, 0.25);
   imshow( "Source Image", image_source );
   moveWindow("Source Image", 0, 0);
 
+  // Histogram of source image
   imwrite( "../image_results/histogram.jpg", histogram );
   resize_image(histogram, 0.75);
   imshow( "histogram", histogram );
   moveWindow("histogram", image_source.cols/2, image_source.rows+25);
 
+  // Magnitudeplot of source image
   imwrite( "../image_results/magnitudeplot.jpg", magnitudeplot * 255 );
   resize_image(magnitudeplot, 0.25);
   imshow( "magnitudeplot", magnitudeplot );
   moveWindow("magnitudeplot", image_source.cols, 0);
 
+  // The restored image
   imwrite( "../image_results/image_restored.jpg", image_restored );
-  resize_image(image_restored, 0.25);
+  resize_image(image_restored, 0.4);
   imshow( "Restored Image", image_restored );
   moveWindow("Restored Image", image_source.cols*2.5, 0);
 
+  // Histogram of the restored image
   imwrite( "../image_results/histogram_r.jpg", histogram_r );
   resize_image(histogram_r, 0.75);
   imshow( "histogram (restored)", histogram_r );
   moveWindow("histogram (restored)", image_source.cols*3, image_source.rows+25);
 
+  // Magnitudeplot of the restored image
   imwrite( "../image_results/magnitudeplot_r.jpg", magnitudeplot_r * 255);
   resize_image(magnitudeplot_r, 0.25);
   imshow( "magnitudeplot (restored)", magnitudeplot_r );
   moveWindow("magnitudeplot (restored)", image_source.cols*3.5, 0);
 
+  // Histogram of the sample
   imwrite( "../image_results/histogram_s.jpg", histogram_s );
   resize_image(histogram_s, 0.75);
   imshow( "histogram (sample)", histogram_s );
   moveWindow("histogram (sample)", image_source.cols*1.75, image_source.rows+25);
 
+  // The sample image
   imwrite( "../image_results/sample.jpg", sample );
   resize_image(sample, 0.75);
   imshow( "sample", sample );
@@ -219,6 +252,8 @@ int main( int argc, char** argv)
 }
 
 //____________________ FUNCTIONS ____________________
+// *** Analyse Sample ***
+// Retrieves a sample from the image, with a specific location.
 Mat analyse_sample(Mat image)
 {
   Rect sample(1350, 1200, 100, 100);
@@ -227,6 +262,9 @@ Mat analyse_sample(Mat image)
   return croppedImage;
 }
 
+// *** Contrast Strecthing ***
+// Non generic stretching function, that moves the lowest value to zero and
+// strecthes the rest of the pixels to maximum.
 void constrast_stretch(Mat src, Mat dst)
 {
   // http://what-when-how.com/embedded-image-processing-on-the-tms320c6000-dsp/contrast-stretching-image-processing/
@@ -244,15 +282,23 @@ void constrast_stretch(Mat src, Mat dst)
   }
 }
 
+// *** Contraharmonic filter ***
+// A Contraharmonic filter based on theory from the book
 void Contraharmonic_filter(Mat src, Mat dst, int kernel_size, float Q)
 {
+    // Create temporary image
     Mat image_tmp;
     src.copyTo(image_tmp);
+
+    // Make border
     int top = (int) (0.05*image_tmp.rows);  int bottom = (int) (0.05*image_tmp.rows);
     int left = (int) (0.05*image_tmp.cols); int right = (int) (0.05*image_tmp.cols);
     copyMakeBorder( src, image_tmp, top, bottom, left, right, BORDER_CONSTANT, 0);
+
+    // Adjust kernel size for calculations
     kernel_size=kernel_size/2;
 
+    // Calculate and apply contraharmonic filter
     for(int y = 0; y < src.rows; y++){
         for(int x = 0; x < src.cols; x++){
           double denominator=0,numerator=0;
@@ -265,20 +311,25 @@ void Contraharmonic_filter(Mat src, Mat dst, int kernel_size, float Q)
        dst.at<uchar>(y,x) = numerator/denominator;
       }
     }
-
-    resize_image(image_tmp, 0.25);
-    imshow("border image", image_tmp);
 }
 
+// *** Midpoint Filter ***
+// Midpoint filter based on theory from the book.
 void midpoint_filter(Mat src, Mat dst, int kernel_size)
 {
+    // Create temporary image
     Mat image_tmp;
     src.copyTo(image_tmp);
+
+    // Make border
     int top = (int) (0.05*image_tmp.rows);  int bottom = (int) (0.05*image_tmp.rows);
     int left = (int) (0.05*image_tmp.cols); int right = (int) (0.05*image_tmp.cols);
     copyMakeBorder( src, image_tmp, top, bottom, left, right, BORDER_CONSTANT, 0);
+
+    // Correct kernel size for calculations
     kernel_size=kernel_size/2;
 
+    // Calculate and apply midpoint filter
     for(int y = 0; y < src.rows; y++){
         for(int x = 0; x < src.cols; x++){
           int max_value = 0;
@@ -293,18 +344,17 @@ void midpoint_filter(Mat src, Mat dst, int kernel_size)
        dst.at<uchar>(y,x) = floor((max_value + min_value)/2);
       }
     }
-
-    resize_image(image_tmp, 0.25);
-    imshow("border image", image_tmp);
 }
 
-void median_filter(Mat src, Mat dst, int kernel_size_orig, const int max_kernel_size)
+// *** Adaptive Median Filter ***
+// Adaptive median filter based on theory from the book
+void adaptive_median_filter(Mat src, Mat dst, int kernel_size_orig, const int max_kernel_size)
 {
   Mat image_tmp;
   src.copyTo(image_tmp);
   int top = (int) (0.1*image_tmp.rows);  int bottom = (int) (0.1*image_tmp.rows);
   int left = (int) (0.1*image_tmp.cols); int right = (int) (0.1*image_tmp.cols);
-  copyMakeBorder( src, image_tmp, top, bottom, left, right, BORDER_CONSTANT, 127); // TODO Better padding? Should we just start further in the picture?
+  copyMakeBorder( src, image_tmp, top, bottom, left, right, BORDER_CONSTANT, 127);
   int z_min, z_max, z_xy, z_med;
   int kernel_size = kernel_size_orig;
   float A1, A2, B1, B2;
@@ -320,7 +370,7 @@ void median_filter(Mat src, Mat dst, int kernel_size_orig, const int max_kernel_
           }
         }
 
-        /// Calculate median TODO FIND REFERENCE TO MEAN CALCULATIONS
+        /// Calculate median
         size_t size = neighborhood.size();
         sort(neighborhood.begin(), neighborhood.end());
 
@@ -369,6 +419,8 @@ void median_filter(Mat src, Mat dst, int kernel_size_orig, const int max_kernel_
   }
 }
 
+// *** Draw Histogram ***
+// Draws the histogram of the input image.
 Mat draw_histogram(Mat image)
 {
   //______________ MAKING HISTOGRAM ______________
@@ -403,16 +455,22 @@ Mat draw_histogram(Mat image)
                      Scalar( 0, 255, 50), 1, 8, 0  );
   }
 
-  /// Return
+  // Return
   return histImage;
 }
 
+// *** Resize Image ***
+// Resizes the image with a specified scale.
 void resize_image(Mat& image, float scale)
 {
   Size size(round(scale*image.cols),round(scale*image.rows));
   resize(image, image, size);
 }
 
+// *** DFT shift ***
+// Shifts the magnitude plot that OpenCV generates, to a magnitude plot with
+// the center correctly placed in the middle of the image.
+// Courtesy of: Stefan-Daniel Suvei
 void dftshift(cv::Mat_<float>& magnitude)
 {
    const int cx = magnitude.cols/2;
@@ -433,21 +491,24 @@ void dftshift(cv::Mat_<float>& magnitude)
    tmp.copyTo(bottomLeft);
 }
 
+// *** Draw Magnitudeplot ***
+// Draws the magnitudeplot of a gray image
 Mat draw_magnitudeplot(Mat_<float> img)
 {
    // A gray image
-   Mat padded;                       //expand input image to optimal size
+   Mat padded;
 
-   //Pad the image with borders using copyMakeBorders. Use getOptimalDFTSize(A+B-1). See G&W page 251,252 and 263 and dft tutorial. (Typicly A+B-1 ~ 2A is used)
-   int m = cv::getOptimalDFTSize(2*img.rows);
-   int n = cv::getOptimalDFTSize(2*img.cols);
+   //expand input image to optimal size
+   //Pad the image with borders using copyMakeBorders. Use getOptimalDFTSize(A+B-1).
+   int m = getOptimalDFTSize(2*img.rows);
+   int n = getOptimalDFTSize(2*img.cols);
 
-   copyMakeBorder(img, padded, 0, m - img.rows, 0, n - img.cols, cv::BORDER_CONSTANT, Scalar::all(0));
+   copyMakeBorder(img, padded, 0, m - img.rows, 0, n - img.cols, BORDER_CONSTANT, Scalar::all(0));
 
    //Copy the gray image into the first channel of a new 2-channel image of type Mat_<Vec2f>, e.g. using merge(), save it in img_dft
    //The second channel should be all zeros.
-   cv::Mat_<float> imgs[] = {img.clone(), cv::Mat_<float>(img.rows, img.cols, 0.0f)};
-   cv::Mat_<cv::Vec2f> img_dft;
+   Mat_<float> imgs[] = {img.clone(), cv::Mat_<float>(img.rows, img.cols, 0.0f)};
+   Mat_<cv::Vec2f> img_dft;
 
    merge(imgs, 2, img_dft);
 
@@ -458,46 +519,31 @@ Mat draw_magnitudeplot(Mat_<float> img)
    split(img_dft, imgs);                   // imgs[0] = Re(DFT(I), imgs[1] = Im(DFT(I))
 
    // Compute magnitude/phase (e.g. cartToPolar), use as input imgs
-   cv::Mat_<float> magnitude, phase;
+   Mat_<float> magnitude, phase;
    cartToPolar(imgs[0], imgs[1], magnitude, phase, false);
 
    // Shift magnitude quadrants for viewability, use dftshift
    dftshift(magnitude);
 
    // Define Logarithm of magnitude and Output image for HPF
-   cv::Mat_<float> magnitudel;
-   cv::Mat_<float> imgout;
+   Mat_<float> magnitudel;
+   Mat_<float> imgout;
 
    log(magnitude, magnitudel);
 
-   // Show
-   cv::normalize(img, img, 0.0, 1.0, CV_MINMAX);
-   cv::normalize(magnitudel, magnitudel, 0.0, 1.0, CV_MINMAX);
-   cv::normalize(phase, phase, 0.0, 1.0, CV_MINMAX);
+   // Normalize for better visualization
+   normalize(img, img, 0.0, 1.0, CV_MINMAX);
+   normalize(magnitudel, magnitudel, 0.0, 1.0, CV_MINMAX);
+   normalize(phase, phase, 0.0, 1.0, CV_MINMAX);
+
    return magnitudel;
 }
 
-void analyse_image(Mat image)
-{
-  Mat histogram = draw_histogram(image);
-  Mat magnitudeplot = draw_magnitudeplot(image);
-
-  //TODO move the picture
-
-
-  resize_image(image, 0.25);
-  imshow( "Source Image", image );
-  moveWindow("Source Image", 0, 0);
-
-  resize_image(histogram, 0.75);
-  imshow( "histogram", histogram );
-  moveWindow("histogram", image.cols/2, image.rows+25);
-
-  resize_image(magnitudeplot, 0.25);
-  imshow( "magnitudeplot", magnitudeplot );
-  moveWindow("magnitudeplot", image.cols, 0);
-}
-
+// *** Analyse Salt and Pepper noise ***
+// Analyse the amount of salt and pepper noises in an image.
+// Returns the percentages of white and black pixels in the image.
+// This method can not dinstinguish an intended black or white pixel from one
+// that is a result of impulse noise.
 void analyse_sp(Mat& image)
 {
   float total_pixels = image.cols * image.rows;
@@ -523,9 +569,10 @@ void analyse_sp(Mat& image)
     p_pepper = pepper / total_pixels;
 
   printf("P of salt: %f \t P of pepper: %f \n", p_salt, p_pepper);
-
 }
 
+// *** Butterworth Notch Filter ***
+// A butterworth notch filter based on theory from the book.
 void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_off, int order)
 {
   // Pad image borders
@@ -576,9 +623,9 @@ void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_of
         H_NR *= H_NR_first * H_NR_second;
       }
 
-      H_NP = H_NR;          // Low pass
-      //H_NP = 1 - H_NR;    // High pass
+      H_NP = H_NR;
 
+      // Multiply the filter with the magnitude plot
       filter_notch.at<float>(u,v) = magnitude.at<float>(u,v) * H_NP;
       filter_notch_values.at<float>(u,v) = H_NP;
     }
@@ -606,20 +653,24 @@ void notch_highpass_butterworth(Mat& image, vector<Point>& targets, float cut_of
   image = imgout.clone();
 }
 
-void sharpen(Mat &image, float k)
+// *** Unsharp Masking ***
+// Sharpen the image using unsharp masking
+void sharpen(Mat &image, float k, int kernel)
 {
-  Mat temp = image.clone();
+  Mat blurred = image.clone();
   float amount = k;
 
   // Get a blurred version of the picture
-  GaussianBlur(temp, image, Size(3, 3), 0, 0);
+  GaussianBlur(blurred, blurred, Size(kernel, kernel), 0, 0);
 
   // Following the formular Sharpened = Original + ( Original - Blurred ) * Amount
   // Ref: https://en.wikipedia.org/wiki/Unsharp_masking#Digital_unsharp_masking
-  addWeighted(temp, 1 + amount, image, -amount, 0, image);
+  addWeighted(image, 1 + amount, blurred, -amount, 0, image);
 
 }
 
+// *** Get filepath ***
+// Used to get the filepath where the images are located.
 string get_filepath(int file_num)
 {
   string path_name="Could not find the path";
