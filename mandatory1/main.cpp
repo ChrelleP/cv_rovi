@@ -43,6 +43,8 @@ int main( int argc, char** argv)
   // Image4_1.png = 41, Image4_2.png = 42, Image5_optional.png = 5,
 
   int image_number    = 5;
+  cout << "Image1.png = 1, Image2.png = 2, Image3.png = 3," << endl;
+  cout << "Image4_1.png = 41, Image4_2.png = 42" << endl;
   cout << "Enter image number: ";
   cin >> image_number;
 
