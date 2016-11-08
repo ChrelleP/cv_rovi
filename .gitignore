@@ -1,4 +1,6 @@
 TAGS
+*.png
+*.jpg
 build/*
 CMakeCache.txt
 CMakeFiles
