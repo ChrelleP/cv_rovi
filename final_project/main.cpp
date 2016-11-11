@@ -31,10 +31,38 @@ using namespace std;
 #define CORNY_INPUT         5
 #define CORNY_INPUT_HARD    6
 
+#define PI                  3.14159265359
+
+// _____________ GLOBAL VARIABLES ____________________
+Mat src, src_threshold;
+Mat dst, output_threshold;
+
+int edgeThresh = 1;
+int lowThreshold;
+int const max_lowThreshold = 255;
+int highThreshold;
+int const max_highThreshold = 255;
+int ratio = 3;
+int kernel_size;
+int const max_kernel_size = 21;
+int low_hueThreshold;
+int high_hueThreshold;
+int low_satThreshold;
+int high_satThreshold;
+int low_valThreshold;
+int high_valThreshold;
+int const max_colorThreshold = 255;
+
+char* window_name = "Output Sequence";
+
 //______________ FUNCTION DECLARATIONS ________________
 // See explanations of functions below the function, further down in the code.
 void load_data(vector<Mat> &input, String &path, int type = 1);
 vector<Mat> color_segmentation(vector<Mat> &input, int type);
+vector<vector<vector<Point> > > find_circle_contours(vector<Mat> &input, int perimeter_thresh, int circle_thresh);
+vector<vector<Point> > find_centers(vector<vector<vector<Point> > > &input_contours);
+void CannyThreshold(int, void*);
+void ColorThreshold(int, void*);
 
 //____________________ MAIN PROGRAM ____________________
 int main( int argc, char** argv)
@@ -60,21 +88,56 @@ int main( int argc, char** argv)
   switch(sequence_number){
     case COLOR_INPUT:
         {
-        //_________ LOAD DATA __________
-        String color_path("../sequences/marker_color/*.png");
-        load_data(input_sequence, color_path, HSV);
+          //_________ LOAD DATA __________
+          String color_path("../sequences/marker_color/*.png");
+          load_data(input_sequence, color_path, HSV);
 
-        vector<Mat> blue_output = color_segmentation(input_sequence, BLUE);
-        output_sequence = blue_output;
+          // Segment the blue color in the images
+          vector<Mat> blue_output = color_segmentation(input_sequence, BLUE);
+
+          // Find contours that belong to circles
+          vector<vector<vector<Point> > > circles = find_circle_contours(blue_output, 100, 0.7);
+
+          // Find the center of the contours
+          vector<vector<Point> > centers = find_centers(circles);
+
+          // Set the output sequence and draw the centers on the images.
+          output_sequence = input_sequence;
+
+          for(int i = 0; i < output_sequence.size();i++)
+          {
+            for(int j = 0; j < centers[i].size(); j++)
+            {
+                circle(output_sequence[i], centers[i][j], 5, Scalar(255, 255, 255));
+            }
+          }
         }
         break;
     case COLOR_INPUT_HARD:
         {
-        // LOAD DATA
-        String color_path_hard("../sequences/marker_color_hard/*.png");
-        load_data(input_sequence, color_path_hard, HSV);
-        vector<Mat> blue_output = color_segmentation(input_sequence, BLUE);
-        output_sequence = blue_output;
+          // LOAD DATA
+          String color_path_hard("../sequences/marker_color_hard/*.png");
+          load_data(input_sequence, color_path_hard, HSV);
+
+          // Segment the blue color in the images
+          vector<Mat> blue_output = color_segmentation(input_sequence, BLUE);
+
+          // Find contours that belong to circles
+          vector<vector<vector<Point> > > circles = find_circle_contours(blue_output, 100, 0.7);
+
+          // Find the center of the contours
+          vector<vector<Point> > centers = find_centers(circles);
+
+          // Set the output sequence and draw the centers on the images.
+          output_sequence = input_sequence;
+
+          for(int i = 0; i < output_sequence.size();i++)
+          {
+            for(int j = 0; j < centers[i].size(); j++)
+            {
+                circle(output_sequence[i], centers[i][j], 5, Scalar(255, 255, 255));
+            }
+          }
 
         }
         break;
@@ -84,6 +147,8 @@ int main( int argc, char** argv)
         String line_path("../sequences/marker_thinline/*.png");
         load_data(input_sequence, line_path, GRAY);
 
+        output_sequence = input_sequence;
+
         }
         break;
     case LINE_INPUT_HARD:
@@ -92,6 +157,7 @@ int main( int argc, char** argv)
         String line_path_hard("../sequences/marker_thinline_hard/*.png");
         load_data(input_sequence, line_path_hard, GRAY);
 
+        output_sequence = input_sequence;
         }
         break;
     case CORNY_INPUT:
@@ -121,12 +187,31 @@ int main( int argc, char** argv)
   }
   output_vid.release();*/
 
-  cout << "Test" << endl;
+  namedWindow( window_name, CV_WINDOW_NORMAL );
+
   // ------- Show results -----
   for(int i = 0; i < output_sequence.size(); i++)
   {
-    imshow("Output Video", output_sequence[i]);
-    if(waitKey(500) >= 0) break; // Increase x of waitKey(x) to slow down the video
+    //src_threshold = output_sequence[i];
+
+    //createTrackbar( "Max Threshold:", window_name, &highThreshold, max_highThreshold, CannyThreshold );
+    //createTrackbar( "Min Threshold:", window_name, &lowThreshold, max_lowThreshold, CannyThreshold );
+    //createTrackbar( "Smooth amount:", window_name, &kernel_size, max_kernel_size, CannyThreshold );
+    //CannyThreshold(0,0);
+
+  /*createTrackbar( "Hue_min:", window_name, &low_hueThreshold, max_colorThreshold, ColorThreshold );
+    createTrackbar( "Hue_max:", window_name, &high_hueThreshold, max_colorThreshold, ColorThreshold );
+    createTrackbar( "Sat_min:", window_name, &low_satThreshold, max_colorThreshold, ColorThreshold );
+    createTrackbar( "Sat_max:", window_name, &high_satThreshold, max_colorThreshold, ColorThreshold );
+    createTrackbar( "Val_min:", window_name, &low_valThreshold, max_colorThreshold, ColorThreshold );
+    createTrackbar( "Val_max:", window_name, &high_valThreshold, max_colorThreshold, ColorThreshold );
+    ColorThreshold(0,0);*/
+
+    if(i == output_sequence.size() - 1){
+      i = 0;
+    }
+    imshow(window_name, output_sequence[i]);
+    if(waitKey(250) >= 0) break; // Increase x of waitKey(x) to slow down the video
   }
 
   waitKey(0);
@@ -161,17 +246,16 @@ void load_data(vector<Mat> &input, String &path, int type)
   }
 }
 
-//____________________ FUNCTIONS ___________________
 // *** Color segmentation ***
 // Example on syntax for function
 vector<Mat> color_segmentation(vector<Mat> &input, int type)
 {
   vector<Mat> output;
 
-  int Sat_lower = 55;
-  int Sat_upper = 200;
-  int Val_lower = 55;
-  int Val_upper = 200;
+  int Sat_lower = 30;
+  int Sat_upper = 255;
+  int Val_lower = 25;
+  int Val_upper = 230;
   int Hue_lower = 0;
   int Hue_upper = 255;
 
@@ -180,7 +264,7 @@ vector<Mat> color_segmentation(vector<Mat> &input, int type)
     Hue_upper = 50;
   }
   else if(type == BLUE){
-    Hue_lower = 100;
+    Hue_lower = 110;
     Hue_upper = 120;
   }
 
@@ -191,4 +275,93 @@ vector<Mat> color_segmentation(vector<Mat> &input, int type)
   }
 
   return output;
+}
+
+// *** Find Circle Contours ***
+// Example on syntax for function
+vector<vector<vector<Point> > > find_circle_contours(vector<Mat> &input, int perimeter_thresh, int circle_thresh)
+{
+  vector<vector<vector<Point> > > result_contours;
+
+  for(int i = 0; i < input.size(); i++)
+  {
+    vector<vector<Point> > contours;
+    vector<vector<Point> > circle_contours;
+    vector<Vec4i> hierarchy;
+
+    /// Find contours
+    findContours( input[i], contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0) );
+
+    /// Extract correct contours
+    for( int j = 0; j < contours.size(); j++ )
+    {
+      // Calculate parameters
+      double area             = abs(contourArea(contours[j], true));
+      double perimeter        = arcLength(contours[j], 1);
+      double circle_constant  = (4 * PI * area) / (perimeter*perimeter);
+
+      if(perimeter > 100 && circle_constant > 0.7)
+      {
+        circle_contours.push_back(contours[j]);
+      }
+    }
+
+    result_contours.push_back(circle_contours);
+  }
+
+  return result_contours;
+
+}
+
+// *** Find Centers ***
+// Example on syntax for function
+vector<vector<Point> > find_centers(vector<vector<vector<Point> > > &input_contours)
+{
+  vector<vector<Point> > circle_centers(input_contours.size());
+
+  for(int i = 0; i < input_contours.size(); i++) // For every frame
+  {
+    for(int j = 0; j < input_contours[i].size(); j++) // For every contour in frame
+    {
+      Moments circle_moments = moments(input_contours[i][j], false);
+      int center_u = floor(circle_moments.m10/circle_moments.m00);
+      int center_v = floor(circle_moments.m01/circle_moments.m00);
+
+      circle_centers[i].push_back(Point(center_u, center_v));
+    }
+  }
+
+  return circle_centers;
+}
+
+// *** Color Threshold ***
+// Example on syntax for function
+void ColorThreshold(int, void*)
+{
+  inRange(src_threshold, Scalar(low_hueThreshold, low_satThreshold, low_valThreshold), Scalar(high_hueThreshold, high_satThreshold, high_valThreshold), output_threshold);
+  dst = Scalar::all(0);
+
+  src_threshold.copyTo( dst, output_threshold);
+  imshow( window_name, dst );
+}
+
+// *** Canny Threshold ***
+// Example on syntax for function
+void CannyThreshold(int, void*)
+{
+  /// Reduce noise with a kernel 3x3
+  if (kernel_size > 0)
+    blur( src_threshold, output_threshold, Size(kernel_size,kernel_size) );
+  else
+    blur( src_threshold, output_threshold, Size(1,1) );
+
+
+  /// Canny detector
+  Canny( output_threshold, output_threshold, lowThreshold, highThreshold, 3 );
+
+  /// Using Canny's output as a mask, we display our result
+  dst = Scalar::all(0);
+
+  src_threshold.copyTo( dst, output_threshold);
+  imshow( window_name, dst );
 }
