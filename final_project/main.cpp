@@ -58,6 +58,7 @@ char* window_name = "Output Sequence";
 //______________ FUNCTION DECLARATIONS ________________
 // See explanations of functions below the function, further down in the code.
 void load_data(vector<Mat> &input, String &path, int type = 1);
+bool intersection(Point o1, Point p1, Point o2, Point p2, Point &r);
 vector<Mat> color_segmentation(vector<Mat> &input, int type);
 vector<vector<vector<Point> > > find_circle_contours(vector<Mat> &input, int perimeter_thresh, int circle_thresh);
 vector<vector<Point> > find_centers(vector<vector<vector<Point> > > &input_contours);
@@ -119,23 +120,55 @@ int main( int argc, char** argv)
           String color_path_hard("../sequences/marker_color_hard/*.png");
           load_data(input_sequence, color_path_hard, HSV);
 
-          // Segment the blue color in the images
+          // Segment the blue and red color in the images
           vector<Mat> blue_output = color_segmentation(input_sequence, BLUE);
+          vector<Mat> red_output = color_segmentation(input_sequence, RED);
 
           // Find contours that belong to circles
-          vector<vector<vector<Point> > > circles = find_circle_contours(blue_output, 100, 0.7);
+          vector<vector<vector<Point> > > blue_circles = find_circle_contours(blue_output, 100, 0.7);
+          vector<vector<vector<Point> > > red_circles = find_circle_contours(red_output, 100, 0.7);
 
           // Find the center of the contours
-          vector<vector<Point> > centers = find_centers(circles);
+          vector<vector<Point> > blue_centers = find_centers(blue_circles);
+          vector<vector<Point> > red_centers = find_centers(red_circles);
+          vector<vector<Point> > coordinates;
+
+          float u_center = 0;
+          float v_center = 0;
+
+          for(int i = 0; i < blue_centers.size(); i++){
+            for(int j = 0; j < blue_centers[i].size(); j++){
+              u_center += blue_centers[i][j].x;
+              v_center += blue_centers[i][j].y;
+            }
+
+            for(int j = 0; j < red_centers[i].size(); j++){
+              u_center += red_centers[i][j].x;
+              v_center += red_centers[i][j].y;
+            }
+
+            u_center = u_center/(blue_centers[i].size() + red_centers[i].size());
+            v_center = v_center/(blue_centers[i].size() + red_centers[i].size());
+
+            vector<Point> temp_coordinate;
+            temp_coordinate.push_back(Point(floor(u_center), floor(v_center)));
+            if(red_centers[i].size() > 0){
+                temp_coordinate.push_back(red_centers[i][0]);   // STUPID FRAME
+            }
+            coordinates.push_back(temp_coordinate);
+
+            u_center = 0;
+            v_center = 0;
+          }
 
           // Set the output sequence and draw the centers on the images.
           output_sequence = input_sequence;
 
           for(int i = 0; i < output_sequence.size();i++)
           {
-            for(int j = 0; j < centers[i].size(); j++)
+            for(int j = 0; j < coordinates[i].size(); j++)
             {
-                circle(output_sequence[i], centers[i][j], 5, Scalar(255, 255, 255));
+                circle(output_sequence[i], coordinates[i][j], 5, Scalar(255, 255, 255));
             }
           }
 
@@ -147,7 +180,70 @@ int main( int argc, char** argv)
         String line_path("../sequences/marker_thinline/*.png");
         load_data(input_sequence, line_path, GRAY);
 
+        vector<Mat> canny_sequence;
+        vector<vector<Vec2f> > hough_lines;
+
+
+        for(int i = 0; i < input_sequence.size(); i++){
+          Mat temp;
+          Canny( input_sequence[i], temp, 100, 150, 3 );
+          canny_sequence.push_back(temp);
+
+          vector<Vec2f> lines;
+          HoughLines(temp, lines, 1, CV_PI/180, 250, 0, 0 );
+          hough_lines.push_back(lines);
+        }
+
+        vector<vector<vector<Point> > > line_points;
+
+        for( int i = 0; i < input_sequence.size(); i++ ){
+          Point pt1, pt2;
+          vector<vector<Point> > temp_lines;
+          line_points.push_back(temp_lines);
+          for( int j = 0; j < hough_lines[i].size(); j++ ){
+           float rho = hough_lines[i][j][0], theta = hough_lines[i][j][1];
+           double a = cos(theta), b = sin(theta);
+           double x0 = a*rho, y0 = b*rho;
+           pt1.x = cvRound(x0 + 1000*(-b));
+           pt1.y = cvRound(y0 + 1000*(a));
+           pt2.x = cvRound(x0 - 1000*(-b));
+           pt2.y = cvRound(y0 - 1000*(a));
+
+           vector<Point> temp_line;
+           temp_line.push_back(pt1);
+           temp_line.push_back(pt2);
+
+           line_points[i].push_back(temp_line);
+          }
+        }
+
+        vector<vector<Point> > intersections;
+        for(int i = 0; i < input_sequence.size(); i++){
+          vector<Point> temp;
+          intersections.push_back(temp);
+          for(int j = 0; j < line_points[i].size(); j++){
+            for(int k = i + 1; k < line_points[i].size(); k++){
+              Point intersection_point;
+              if(intersection(line_points[i][j][0], line_points[i][j][1], line_points[i][k][0], line_points[i][k][0], intersection_point)){
+                cout << "Found intersection" << endl;
+                intersections[i].push_back(intersection_point);
+              }
+            }
+          }
+        }
+
+        // Draw lines and intersections
+        for(int i = 0; i < input_sequence.size(); i++){
+          for(int j = 0; j < line_points[i].size(); j++){
+             line( input_sequence[i], line_points[i][j][0], line_points[i][j][1], Scalar(0,0,255), 3, CV_AA);
+          }
+          for(int j = 0; j < intersections[i].size(); j++){
+            circle(input_sequence[i], intersections[i][j], 5, Scalar(255, 255, 255));
+          }
+        }
+
         output_sequence = input_sequence;
+
 
         }
         break;
@@ -210,8 +306,10 @@ int main( int argc, char** argv)
     if(i == output_sequence.size() - 1){
       i = 0;
     }
+    Mat output_image;
+    //cvtColor(output_sequence[i], output_image, CV_HSV2BGR);
     imshow(window_name, output_sequence[i]);
-    if(waitKey(250) >= 0) break; // Increase x of waitKey(x) to slow down the video
+    if(waitKey(500) >= 0) break; // Increase x of waitKey(x) to slow down the video
   }
 
   waitKey(0);
@@ -246,6 +344,25 @@ void load_data(vector<Mat> &input, String &path, int type)
   }
 }
 
+// *** Find Intersections ***
+// Finds the intersection of two lines, or returns false.
+// The lines are defined by (o1, p1) and (o2, p2).
+bool intersection(Point o1, Point p1, Point o2, Point p2,
+                      Point &r)
+{
+    Point x = o2 - o1;
+    Point d1 = p1 - o1;
+    Point d2 = p2 - o2;
+
+    float cross = d1.x*d2.y - d1.y*d2.x;
+    if (abs(cross) < /*EPS*/1e-8)
+        return false;
+
+    double t1 = (x.x * d2.y - x.y * d2.x)/cross;
+    r = (o1 + d1 * t1);
+    return true;
+}
+
 // *** Color segmentation ***
 // Example on syntax for function
 vector<Mat> color_segmentation(vector<Mat> &input, int type)
@@ -254,24 +371,43 @@ vector<Mat> color_segmentation(vector<Mat> &input, int type)
 
   int Sat_lower = 30;
   int Sat_upper = 255;
-  int Val_lower = 25;
-  int Val_upper = 230;
+  int Val_lower = 30;
+  int Val_upper = 235;
   int Hue_lower = 0;
   int Hue_upper = 255;
 
   if(type == RED){
-    Hue_lower = 0;
-    Hue_upper = 50;
+    int Hue_lower_1 = 0;
+    int Hue_upper_1 = 10;
+    int Hue_lower_2 = 245;
+    int Hue_upper_2 = 255;
+
+    for(int i = 0; i < input.size(); i++)
+    {
+       Mat lower_temp;
+       Mat upper_temp;
+       output.push_back(input[i]);
+       inRange(input[i], Scalar(Hue_lower_1, Sat_lower, Val_lower), Scalar(Hue_upper_1, Sat_upper, Val_upper), lower_temp);
+       inRange(input[i], Scalar(Hue_lower_2, Sat_lower, Val_lower), Scalar(Hue_upper_2, Sat_upper, Val_upper), upper_temp);
+       addWeighted( lower_temp, 1, upper_temp, 1, 0.0, output[i]);
+    }
   }
   else if(type == BLUE){
     Hue_lower = 110;
     Hue_upper = 120;
-  }
 
-  for(int i = 0; i < input.size(); i++)
-  {
-     output.push_back(input[i]);
-     inRange(input[i], Scalar(Hue_lower, Sat_lower, Val_lower), Scalar(Hue_upper, Sat_upper, Val_upper), output[i]);
+    for(int i = 0; i < input.size(); i++)
+    {
+       output.push_back(input[i]);
+       inRange(input[i], Scalar(Hue_lower, Sat_lower, Val_lower), Scalar(Hue_upper, Sat_upper, Val_upper), output[i]);
+    }
+  }
+  else{
+    for(int i = 0; i < input.size(); i++)
+    {
+       output.push_back(input[i]);
+       inRange(input[i], Scalar(Hue_lower, Sat_lower, Val_lower), Scalar(Hue_upper, Sat_upper, Val_upper), output[i]);
+    }
   }
 
   return output;
