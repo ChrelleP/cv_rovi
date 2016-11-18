@@ -23,13 +23,15 @@ using namespace std;
 
 #define RED         1
 #define BLUE        2
+#define B_W         3
 
-#define COLOR_INPUT         1
-#define COLOR_INPUT_HARD    2
-#define LINE_INPUT          3
-#define LINE_INPUT_HARD     4
-#define CORNY_INPUT         5
-#define CORNY_INPUT_HARD    6
+#define COLOR_INPUT             1
+#define COLOR_INPUT_HARD        2
+#define LINE_INPUT              3
+#define LINE_INPUT_HARD         4
+#define THICKLINE_INPUT         5
+#define THICKLINE_INPUT_HARD    6
+#define TEST                    7
 
 #define PI                  3.14159265359
 
@@ -69,7 +71,8 @@ void ColorThreshold(int, void*);
 int main( int argc, char** argv)
 {
   // color_input = 1, color_input_hard = 2, line_input = 3,
-  // line_input_hard = 4, corny_input = 5, corny_input_hard = 6.
+  // line_input_hard = 4, thickline_input = 5, thickline_input_hard = 6.
+  // test_input = 7.
 
   int sequence_number;
   cout << "____________ Final Project ROVI - Computer vision ______________" << endl << endl;
@@ -84,6 +87,7 @@ int main( int argc, char** argv)
   //_____________ VARIABLES AND DATA ______________
   vector<Mat> input_sequence;
   vector<Mat> output_sequence;
+  Mat output_image;
 
   // ________________ Object Recognition ____________________
   switch(sequence_number){
@@ -183,7 +187,6 @@ int main( int argc, char** argv)
         vector<Mat> canny_sequence;
         vector<vector<Vec2f> > hough_lines;
 
-
         for(int i = 0; i < input_sequence.size(); i++){
           Mat temp;
           Canny( input_sequence[i], temp, 100, 150, 3 );
@@ -222,10 +225,9 @@ int main( int argc, char** argv)
           vector<Point> temp;
           intersections.push_back(temp);
           for(int j = 0; j < line_points[i].size(); j++){
-            for(int k = i + 1; k < line_points[i].size(); k++){
+            for(int k = j + 1; k < line_points[i].size(); k++){
               Point intersection_point;
-              if(intersection(line_points[i][j][0], line_points[i][j][1], line_points[i][k][0], line_points[i][k][0], intersection_point)){
-                cout << "Found intersection" << endl;
+              if(intersection(line_points[i][j][0], line_points[i][j][1], line_points[i][k][0], line_points[i][k][1], intersection_point)){
                 intersections[i].push_back(intersection_point);
               }
             }
@@ -250,27 +252,82 @@ int main( int argc, char** argv)
     case LINE_INPUT_HARD:
         {
         // LOAD DATA
-        String line_path_hard("../sequences/marker_thinline_hard/*.png");
+        String line_path_hard("../sequences/marker_thinline/*.png");
         load_data(input_sequence, line_path_hard, GRAY);
 
         output_sequence = input_sequence;
         }
         break;
-    case CORNY_INPUT:
+    case THICKLINE_INPUT:
         {
         // LOAD DATA
-        String corny_path("../sequences/marker_corny/*.png");
-        load_data(input_sequence, corny_path, GRAY);
+        String thickline_path("../sequences/marker_thickline/*.png");
+        load_data(input_sequence, thickline_path, HSV);
+
+        vector<Mat> canny_sequence;
+        vector<vector<Vec4i> > hough_lines;
+
+        for(int i = 0; i < input_sequence.size(); i++){
+          Mat temp;
+          Canny( input_sequence[i], temp, 100, 150, 3 );
+          canny_sequence.push_back(temp);
+
+          vector<Vec4i> lines;
+          HoughLinesP(temp, lines, 1, CV_PI/180, 50, 50, 10 );
+          hough_lines.push_back(lines);
+        }
+
+        // Convert to points
+        for(int i = 0; i < input_sequence.size(); i++){
+          for(int j = 0; j < hough_lines[i].size(); j++){
+            circle(input_sequence[i], Point(hough_lines[i][j][0], hough_lines[i][j][1]), 5, Scalar(255, 255, 255));
+            circle(input_sequence[i], Point(hough_lines[i][j][2], hough_lines[i][j][3]), 5, Scalar(255, 255, 255));
+            cout << "I: " << i << endl;
+          }
+        }
+
+        output_sequence = input_sequence;
 
         }
         break;
-    case CORNY_INPUT_HARD:
+    case THICKLINE_INPUT_HARD:
         {
         // LOAD DATA
-        String corny_path_hard("../sequences/marker_corny_hard/*.png");
-        load_data(input_sequence, corny_path_hard, GRAY);
+        String corny_path_hard("../sequences/marker_thickline/*.png");
+        load_data(input_sequence, corny_path_hard, HSV);
+
+        vector<Mat> Black_white = color_segmentation(input_sequence, B_W);
+
+        output_sequence = Black_white;
 
         }
+        break;
+    case TEST:
+        cout << "-- Test case --" << endl;
+
+        Mat image;
+        Mat dst;
+        image = imread("../sequences/marker_thickline/marker_thickline_01.png", 1);
+
+        cvtColor(image, dst, CV_BGR2HSV);
+        inRange(dst, Scalar(0, 0, 0), Scalar(255, 255, 30), dst);
+
+        Canny( dst, dst, 100, 150, 3 );
+
+        vector<Vec4i> lines;
+        HoughLinesP( dst, lines, 1, CV_PI/180, 20, 175, 250 );
+
+        for(int i = 0; i < lines.size(); i++){
+            Point first(lines[i][0], lines[i][1]);
+            Point second(lines[i][2], lines[i][3]);
+            line( image, first, second, Scalar(0,0,255), 1, CV_AA);
+        }
+
+        imshow("Test", dst);
+
+        waitKey(0);
+
+        return 0;
         break;
   }
 
@@ -295,7 +352,7 @@ int main( int argc, char** argv)
     //createTrackbar( "Smooth amount:", window_name, &kernel_size, max_kernel_size, CannyThreshold );
     //CannyThreshold(0,0);
 
-  /*createTrackbar( "Hue_min:", window_name, &low_hueThreshold, max_colorThreshold, ColorThreshold );
+    /*createTrackbar( "Hue_min:", window_name, &low_hueThreshold, max_colorThreshold, ColorThreshold );
     createTrackbar( "Hue_max:", window_name, &high_hueThreshold, max_colorThreshold, ColorThreshold );
     createTrackbar( "Sat_min:", window_name, &low_satThreshold, max_colorThreshold, ColorThreshold );
     createTrackbar( "Sat_max:", window_name, &high_satThreshold, max_colorThreshold, ColorThreshold );
@@ -306,10 +363,9 @@ int main( int argc, char** argv)
     if(i == output_sequence.size() - 1){
       i = 0;
     }
-    Mat output_image;
     //cvtColor(output_sequence[i], output_image, CV_HSV2BGR);
     imshow(window_name, output_sequence[i]);
-    if(waitKey(500) >= 0) break; // Increase x of waitKey(x) to slow down the video
+    if(waitKey(5000) >= 0) break; // Increase x of waitKey(x) to slow down the video
   }
 
   waitKey(0);
@@ -400,6 +456,24 @@ vector<Mat> color_segmentation(vector<Mat> &input, int type)
     {
        output.push_back(input[i]);
        inRange(input[i], Scalar(Hue_lower, Sat_lower, Val_lower), Scalar(Hue_upper, Sat_upper, Val_upper), output[i]);
+    }
+  }
+  else if(type == B_W){
+    int Val_lower_1 = 0;
+    int Val_upper_1 = 10;
+    int Val_lower_2 = 245;
+    int Val_upper_2 = 255;
+    int Sat_lower1 = 0;
+    int Sat_upper1 = 255;
+
+    for(int i = 0; i < input.size(); i++)
+    {
+       Mat lower_temp;
+       Mat upper_temp;
+       output.push_back(input[i]);
+       inRange(input[i], Scalar(Hue_lower, Sat_lower, Val_lower_1), Scalar(Hue_upper, Sat_upper, Val_upper_1), lower_temp);
+       inRange(input[i], Scalar(Hue_lower, Sat_lower, Val_lower_2), Scalar(Hue_upper, Sat_upper, Val_upper_2), upper_temp);
+       addWeighted( lower_temp, 1, upper_temp, 1, 0.0, output[i]);
     }
   }
   else{
